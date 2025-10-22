@@ -1,0 +1,199 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+}
+
+.popup-container {
+  width: 260px;
+  height: 400px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px;
+  text-align: center;
+  position: relative;
+}
+
+.header h1 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.subscription-section {
+  padding: 12px;
+  flex: 1;
+}
+
+.subscription-card {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 10px;
+  border: 1px solid #e9ecef;
+}
+
+.plan-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.plan-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+}
+
+.plan-status {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: #d4edda;
+  color: #155724;
+  font-weight: 500;
+}
+
+.plan-status.active {
+  background: #d4edda;
+  color: #155724;
+}
+
+.plan-details {
+  space-y: 4px;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+
+.detail-item:last-child {
+  margin-bottom: 0;
+}
+
+.label {
+  color: #666;
+}
+
+.value {
+  color: #333;
+  font-weight: 500;
+}
+
+.features-section {
+  padding: 0 20px 20px;
+}
+
+.features-section h2 {
+  font-size: 16px;
+  color: #333;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.features-list {
+  list-style: none;
+}
+
+.features-list li {
+  font-size: 13px;
+  color: #555;
+  margin-bottom: 8px;
+  padding-left: 0;
+}
+
+.features-list li:last-child {
+  margin-bottom: 0;
+}
+
+.footer {
+  padding: 20px;
+  border-top: 1px solid #e9ecef;
+  display: flex;
+  gap: 10px;
+}
+
+.btn-primary, .btn-secondary {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+  background: #f8f9fa;
+  color: #666;
+  border: 1px solid #e9ecef;
+}
+
+.btn-secondary:hover {
+  background: #e9ecef;
+  color: #333;
+}
+
+/* View More Button Styles */
+.view-more-section {
+  padding: 8px 12px;
+  border-top: 1px solid #e9ecef;
+}
+
+.popup-view-more-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.popup-view-more-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.popup-view-more-btn svg {
+  transition: transform 0.2s ease;
+}
+
+.popup-view-more-btn:hover svg {
+  transform: translateX(2px);
+}
+
