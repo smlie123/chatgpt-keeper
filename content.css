@@ -5,7 +5,7 @@
   position: fixed;
   top: 0;
   right: 0;
-  width: 230px;
+  width: 300px;
   height: 100vh;
   background: #ffffff;
   border-left: 1px solid #e5e7eb;
@@ -59,13 +59,14 @@
 
 /* 侧栏头部 */
 .sidebar-header {
-  padding: 16px;
+  padding: 10px 16px;
   border-bottom: 1px solid #e5e7eb;
   background: #f9fafb;
+  position: relative;
 }
 
 .sidebar-title {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: #374151;
   margin: 0;
@@ -76,6 +77,25 @@
   color: #6b7280;
   margin: 4px 0 0 0;
 }
+ 
+ .enter-multi-select-btn {
+  display: inline-block;
+  padding: 4px 8px;
+  background: #3b82f6;
+  color: white;
+  border: 1px solid #3b82f6;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+  margin-left: 8px;
+  width: 42px;
+}
+ 
+ .enter-multi-select-btn:hover {
+   background: #2563eb;
+   border-color: #2563eb;
+ }
 
 /* 问题列表容器 */
 .questions-container {
@@ -143,16 +163,131 @@
   color: #fbbf24;
 }
 
-/* 多选模式样式 */
-.multi-select-controls {
-  margin-top: 8px;
+/* Toast 提示样式 */
+.toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #10b981;
+  color: white;
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0;
+  transform: translateX(100%);
+  transition: all 0.3s ease;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.toast.error {
+  background: #ef4444;
+}
+
+/* Popover 二次确认样式 */
+.popover {
+  position: absolute;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 16px;
+  z-index: 10001;
+  min-width: 200px;
+  opacity: 0;
+  transform: scale(0.95);
+  transition: all 0.2s ease;
+}
+
+.popover.show {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.popover-content {
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.popover-actions {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.popover-btn {
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: white;
+  color: #374151;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.popover-btn:hover {
+  background: #f9fafb;
+}
+
+.popover-btn.primary {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+}
+
+.popover-btn.primary:hover {
+  background: #dc2626;
+}
+
+/* 多选模式样式 */
+.multi-select-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  flex-basis: 100%;
+  text-decoration: none;
+  border-bottom: none;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.multi-select-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.select-all-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #374151;
+}
+
+.select-all-checkbox {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.select-all-text {
+  user-select: none;
 }
 
 .multi-select-toggle,
-.batch-save-btn,
 .cancel-select-btn {
   padding: 4px 8px;
   border: 1px solid #d1d5db;
@@ -162,6 +297,21 @@
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
+  width: 42px;
+}
+
+.batch-save-btn {
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #f9fafb;
+  color: #374151;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  width: auto;
 }
 
 .multi-select-toggle:hover,
@@ -316,48 +466,37 @@
   background: #94a3b8;
 }
 
-/* 侧栏底部 */
-.sidebar-footer {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 30px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
+
 
 .view-more-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: white;
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  color: #6b7280;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 400;
   cursor: pointer;
-  transition: all 0.2s ease;
-  gap: 4px;
+  transition: color 0.2s ease;
+  background: none;
+  border: none;
+  padding: 0;
+  display: inline;
+  width: auto;
+  height: auto;
 }
 
 .view-more-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  color: #374151;
 }
 
 .view-more-btn .arrow-icon {
-  width: 14px;
-  height: 14px;
-  transition: transform 0.2s ease;
-}
-
-.view-more-btn:hover .arrow-icon {
-  transform: translateX(2px);
+  display: none;
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
   .chatgpt-sidebar {
-    width: 200px;
+    width: 280px;
   }
   
   .sidebar-header {

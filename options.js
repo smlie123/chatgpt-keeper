@@ -8,28 +8,19 @@
   let articles = [];
   let categories = [];
   
-  // 通用存储访问函数
+  // 通用存储访问函数 - 使用IndexedDB
   const storage = {
     async get(keys) {
-      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        return await chrome.storage.local.get(keys);
-      } else {
-        const result = {};
-        keys.forEach(key => {
-          const value = localStorage.getItem(key);
-          result[key] = value ? JSON.parse(value) : undefined;
-        });
-        return result;
+      if (typeof storageAPI === 'undefined') {
+        throw new Error('storageAPI未定义，请确保storage-api.js已加载');
       }
+      return await storageAPI.get(keys);
     },
     async set(data) {
-      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        return await chrome.storage.local.set(data);
-      } else {
-        Object.keys(data).forEach(key => {
-          localStorage.setItem(key, JSON.stringify(data[key]));
-        });
+      if (typeof storageAPI === 'undefined') {
+        throw new Error('storageAPI未定义，请确保storage-api.js已加载');
       }
+      return await storageAPI.set(data);
     }
   };
 
@@ -41,17 +32,21 @@
     
     async init() {
       // 确保数据结构存在
-      const result = await storage.get(['categories', 'articles', 'favorites']);
+      const result = await storage.get(['categories', 'articles']);
       
-      if (!result.categories) {
-        await storage.set({ categories: [] });
+      // 初始化分类数据，如果为空则创建默认分类
+      if (!result.categories || result.categories.length === 0) {
+        const defaultCategories = [
+          
+        ];
+        await storage.set({ categories: defaultCategories });
+        console.log('已创建默认分类:', defaultCategories.map(c => c.name).join(', '));
       }
+      
       if (!result.articles) {
         await storage.set({ articles: [] });
       }
-      if (!result.favorites) {
-        await storage.set({ favorites: [] });
-      }
+      // favorites表已移除，不再需要初始化
       
       return true;
     }
@@ -125,12 +120,32 @@
     }
     
     async deleteCategory(id) {
-      const result = await storage.get(['categories']);
+      const result = await storage.get(['categories', 'articles']);
       const categories = result.categories || [];
+      const articles = result.articles || [];
       
+      // 找到要删除的分类名称
+      const categoryToDelete = categories.find(cat => cat.id === id);
+      if (!categoryToDelete) {
+        throw new Error('分类不存在');
+      }
+      
+      // 将该分类下的所有文章改为"未分类"
+      const updatedArticles = articles.map(article => {
+        if (article.category === categoryToDelete.name) {
+          return { ...article, category: '未分类' };
+        }
+        return article;
+      });
+      
+      // 删除分类
       const filteredCategories = categories.filter(cat => cat.id !== id);
       
-      await storage.set({ categories: filteredCategories });
+      // 同时更新分类和文章数据
+      await storage.set({ 
+        categories: filteredCategories,
+        articles: updatedArticles
+      });
     }
     
     // 文章相关方法
@@ -191,6 +206,16 @@
       // 初始化数据库
       await categoryDB.init();
       
+      // 执行数据迁移（从chrome.storage.local到IndexedDB）
+      const migrationResult = await storageAPI.migrateFromChromeStorage();
+      if (migrationResult.migrated) {
+        console.log('数据迁移成功:', migrationResult.message);
+      } else if (migrationResult.reason) {
+        console.log('跳过数据迁移:', migrationResult.reason);
+      } else {
+        console.warn('数据迁移失败:', migrationResult.error);
+      }
+      
       // 加载分类数据
       await loadCategories();
       
@@ -215,11 +240,7 @@
       searchInput.addEventListener('input', handleSearch);
     }
     
-    // 视图切换按钮事件
-    const viewBtns = document.querySelectorAll('.view-btn');
-    viewBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => handleViewChange(e));
-    });
+    // 视图切换按钮事件已移除，只保留卡片视图
     
     // 排序按钮事件
     const sortBtn = document.querySelector('#sortBtn');
@@ -306,12 +327,43 @@
       }
     });
     
-    // ESC键关闭抽屉
+    // 分类选择弹窗事件
+    const categorySelectModal = document.getElementById('categorySelectModal');
+    const categorySelectClose = document.getElementById('categorySelectClose');
+    const categorySelectCancel = document.getElementById('categorySelectCancel');
+    const categorySelectConfirm = document.getElementById('categorySelectConfirm');
+    
+    if (categorySelectClose) {
+      categorySelectClose.addEventListener('click', closeCategorySelectModal);
+    }
+    
+    if (categorySelectCancel) {
+      categorySelectCancel.addEventListener('click', closeCategorySelectModal);
+    }
+    
+    if (categorySelectConfirm) {
+      categorySelectConfirm.addEventListener('click', confirmCategorySelect);
+    }
+    
+    if (categorySelectModal) {
+      categorySelectModal.addEventListener('click', (e) => {
+        if (e.target === categorySelectModal) {
+          closeCategorySelectModal();
+        }
+      });
+    }
+    
+    // ESC键关闭抽屉和弹窗
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         const drawer = document.getElementById('articleDrawer');
         if (drawer && drawer.classList.contains('active')) {
           closeArticleDrawer();
+        }
+        
+        const categoryModal = document.getElementById('categorySelectModal');
+        if (categoryModal && categoryModal.style.display === 'block') {
+          closeCategorySelectModal();
         }
       }
     });
@@ -364,34 +416,115 @@
     }
   }
   
-  // 打开编辑分类弹窗
-  function openEditCategoryModal(articleId, currentCategory, type, originalId) {
+  // 分类选择弹窗相关变量
+  let currentEditingArticle = null;
+  
+  // 打开分类选择弹窗
+  function openCategorySelectModal(articleId, currentCategory, type, originalId) {
     // 只处理文章类型
     if (type !== 'article') {
       console.log('当前版本只支持编辑文章分类');
       return;
     }
     
-    // 创建简单的提示框让用户选择新分类
-    const newCategory = prompt(`当前分类：${currentCategory}\n\n请输入新的分类名称：`, currentCategory);
+    // 保存当前编辑的文章信息
+    currentEditingArticle = {
+      articleId,
+      currentCategory,
+      type,
+      originalId
+    };
     
-    if (newCategory && newCategory.trim() !== '' && newCategory !== currentCategory) {
+    // 显示弹窗
+    const modal = document.getElementById('categorySelectModal');
+    modal.style.display = 'block';
+    
+    // 渲染分类列表
+    renderCategorySelectList(currentCategory);
+  }
+  
+  // 渲染分类选择列表
+  function renderCategorySelectList(currentCategory) {
+    const listContainer = document.getElementById('categorySelectList');
+    listContainer.innerHTML = '';
+    
+    // 添加"未分类"选项
+    const uncategorizedItem = createCategorySelectItem('未分类', currentCategory === '未分类');
+    listContainer.appendChild(uncategorizedItem);
+    
+    // 添加其他分类选项
+    categories.forEach(category => {
+      const item = createCategorySelectItem(category.name, currentCategory === category.name);
+      listContainer.appendChild(item);
+    });
+  }
+  
+  // 创建分类选择项
+  function createCategorySelectItem(categoryName, isSelected) {
+    const item = document.createElement('div');
+    item.className = `category-select-item ${isSelected ? 'selected' : ''}`;
+    
+    item.innerHTML = `
+      <input type="radio" name="categorySelect" value="${escapeHtml(categoryName)}" ${isSelected ? 'checked' : ''}>
+      <label>${escapeHtml(categoryName)}</label>
+    `;
+    
+    // 添加点击事件
+    item.addEventListener('click', () => {
+      // 取消其他选项的选中状态
+      document.querySelectorAll('.category-select-item').forEach(i => i.classList.remove('selected'));
+      // 选中当前项
+      item.classList.add('selected');
+      const radio = item.querySelector('input[type="radio"]');
+      radio.checked = true;
+    });
+    
+    return item;
+  }
+  
+  // 关闭分类选择弹窗
+  function closeCategorySelectModal() {
+    const modal = document.getElementById('categorySelectModal');
+    modal.style.display = 'none';
+    currentEditingArticle = null;
+  }
+  
+  // 确认分类选择
+  function confirmCategorySelect() {
+    if (!currentEditingArticle) return;
+    
+    const selectedRadio = document.querySelector('input[name="categorySelect"]:checked');
+    if (!selectedRadio) {
+      alert('请选择一个分类');
+      return;
+    }
+    
+    const newCategory = selectedRadio.value;
+    const { originalId, currentCategory } = currentEditingArticle;
+    
+    if (newCategory !== currentCategory) {
       // 更新文章的分类
       const article = articles.find(art => art.id === originalId);
       if (article) {
-        article.category = newCategory.trim();
-        // 这里应该同时更新数据库
-        categoryDB.updateArticle(originalId, { category: newCategory.trim() })
-          .then(() => {
+        article.category = newCategory;
+        // 更新数据库
+        categoryDB.updateArticle(originalId, { category: newCategory })
+          .then(async () => {
             console.log(`已将文章"${article.title}"的分类更改为"${newCategory}"`);
-            // 重新渲染卡片
+            // 重新渲染卡片和导航
             renderCards();
+            await renderNavCategories();
+            // 关闭弹窗
+            closeCategorySelectModal();
           })
           .catch(error => {
             console.error('更新分类失败:', error);
             alert('更新分类失败，请重试');
           });
       }
+    } else {
+      // 分类没有变化，直接关闭弹窗
+      closeCategorySelectModal();
     }
   }
   
@@ -420,31 +553,63 @@
   }
   
   // 处理视图切换
-  function handleViewChange(e) {
-    const viewType = e.currentTarget.dataset.view;
-    if (!viewType) return;
-    
-    // 更新按钮状态
-    const viewBtns = document.querySelectorAll('.view-btn');
-    viewBtns.forEach(btn => btn.classList.remove('active'));
-    e.currentTarget.classList.add('active');
-    
-    // 切换容器类名
-    const cardsContainer = document.querySelector('.masonry-container');
-    if (cardsContainer) {
-      if (viewType === 'list') {
-        cardsContainer.classList.add('list-view');
-      } else {
-        cardsContainer.classList.remove('list-view');
-      }
-    }
-  }
+  // handleViewChange函数已移除，只保留卡片视图
   
   // 处理删除卡片
-  async function handleDeleteCard(cardId, type, originalId) {
+  function handleDeleteCard(cardId, type, originalId, btnElement) {
+    showDeletePopover(cardId, type, originalId, btnElement);
+  }
+  
+  // 显示删除确认popover
+  function showDeletePopover(cardId, type, originalId, btnElement) {
     const confirmText = type === 'article' ? '确定要删除这篇文章吗？' : '确定要删除这个对话吗？';
     
-    if (confirm(confirmText)) {
+    // 创建popover元素
+    const popover = document.createElement('div');
+    popover.className = 'popover delete-popover';
+    popover.innerHTML = `
+      <div class="popover-content">
+        <p>${confirmText}</p>
+        <div class="popover-actions">
+          <button class="popover-btn cancel-btn">取消</button>
+          <button class="popover-btn confirm-btn">删除</button>
+        </div>
+      </div>
+    `;
+    
+    // 定位popover
+    const rect = btnElement.getBoundingClientRect();
+    popover.style.position = 'fixed';
+    popover.style.top = `${rect.top - 80}px`;
+    popover.style.zIndex = '10000';
+    
+    // 先添加到DOM中以获取popover的尺寸
+    document.body.appendChild(popover);
+    const popoverRect = popover.getBoundingClientRect();
+    
+    // 让popover的右侧与删除按钮对齐
+    const leftPosition = rect.right - popoverRect.width;
+    popover.style.left = `${leftPosition}px`;
+    
+    // 显示动画
+    setTimeout(() => {
+      popover.classList.add('show');
+    }, 10);
+    
+    // 取消按钮事件
+    const cancelBtn = popover.querySelector('.cancel-btn');
+    cancelBtn.addEventListener('click', () => {
+      popover.classList.remove('show');
+      setTimeout(() => {
+        if (popover.parentNode) {
+          popover.remove();
+        }
+      }, 200);
+    });
+    
+    // 确认删除按钮事件
+    const confirmBtn = popover.querySelector('.confirm-btn');
+    confirmBtn.addEventListener('click', async () => {
       try {
         if (type === 'article') {
           // 删除文章
@@ -460,13 +625,39 @@
           console.log('当前版本只支持删除文章');
         }
         
-        // 重新渲染卡片
+        // 重新渲染卡片和导航
         renderCards();
+        await renderNavCategories();
       } catch (error) {
         console.error('删除失败:', error);
         alert('删除失败，请重试');
       }
-    }
+      
+      // 隐藏popover
+      popover.classList.remove('show');
+      setTimeout(() => {
+        if (popover.parentNode) {
+          popover.remove();
+        }
+      }, 200);
+    });
+    
+    // 点击外部关闭popover
+    const closePopover = (e) => {
+      if (!popover.contains(e.target) && !btnElement.contains(e.target)) {
+        popover.classList.remove('show');
+        setTimeout(() => {
+          if (popover.parentNode) {
+            popover.remove();
+          }
+        }, 200);
+        document.removeEventListener('click', closePopover);
+      }
+    };
+    
+    setTimeout(() => {
+      document.addEventListener('click', closePopover);
+    }, 100);
   }
   
   // 显示文章详情
@@ -538,22 +729,71 @@
           md.use(markdownitEmoji);
         }
         
+        // 添加自定义插件：处理 mytag 注释标记
+        md.core.ruler.before('normalize', 'mytag_block', function(state) {
+          let src = state.src;
+          const regex = /<!--\s*mytag:start\s*-->([\s\S]*?)<!--\s*mytag:end\s*-->/g;
+          
+          src = src.replace(regex, function(match, innerContent) {
+             const trimmedContent = innerContent.trim();
+             return `<div class="my-question"><p>${trimmedContent}</p></div>`;
+           });
+          
+          state.src = src;
+        });
+        
         const htmlContent = md.render(content);
         drawerContent.innerHTML = htmlContent;
         
         // 添加GitHub Markdown样式类
         drawerContent.classList.add('markdown-body');
         
+        // 检测是否有.my-question元素，如果有则隐藏article-title
+        const myQuestions = drawerContent.querySelectorAll('.my-question');
+        const articleTitle = drawer.querySelector('.article-title');
+        if (myQuestions.length > 0 && articleTitle) {
+          articleTitle.style.display = 'none';
+        } else if (articleTitle) {
+          articleTitle.style.display = 'block';
+        }
+        
+        // 生成目录 - 基于my-question元素
+        generateTableOfContents(myQuestions);
+        
 
       } catch (error) {
         console.error('Markdown解析错误:', error);
         drawerContent.innerHTML = escapeHtml(content).replace(/\n/g, '<br>');
         drawerContent.classList.add('markdown-body');
+        
+        // 即使解析错误也要检测.my-question元素
+        const myQuestions = drawerContent.querySelectorAll('.my-question');
+        const articleTitle = drawer.querySelector('.article-title');
+        if (myQuestions.length > 0 && articleTitle) {
+          articleTitle.style.display = 'none';
+        } else if (articleTitle) {
+          articleTitle.style.display = 'block';
+        }
+        
+        // 生成目录 - 基于my-question元素
+        generateTableOfContents(myQuestions);
       }
     } else {
       // 如果markdown-it库未加载，使用简单的文本显示
       drawerContent.innerHTML = escapeHtml(content).replace(/\n/g, '<br>');
       drawerContent.classList.add('markdown-body');
+      
+      // 检测my-question元素，如果存在则隐藏article-title
+       const myQuestions = drawerContent.querySelectorAll('.my-question');
+       const articleTitle = drawer.querySelector('.article-title');
+       if (myQuestions.length > 0 && articleTitle) {
+         articleTitle.style.display = 'none';
+       } else if (articleTitle) {
+         articleTitle.style.display = 'block';
+       }
+       
+       // 生成目录 - 基于my-question元素
+       generateTableOfContents(myQuestions);
     }
     
     // 设置meta信息栏的时间
@@ -576,6 +816,58 @@
     
     // 显示抽屉
     drawer.classList.add('active');
+  }
+  
+  // 生成目录函数
+  function generateTableOfContents(myQuestions) {
+    const tocContainer = document.getElementById('tableOfContents');
+    const tocList = document.getElementById('tocList');
+    
+    if (!tocContainer || !tocList) return;
+    
+    // 清空现有目录
+    tocList.innerHTML = '';
+    
+    // 如果问题数量大于1，显示目录
+    if (myQuestions.length > 1) {
+      tocContainer.style.display = 'block';
+      
+      myQuestions.forEach((question, index) => {
+        // 为问题元素添加id，用于锚点跳转
+        const id = `question-${index}`;
+        question.id = id;
+        
+        // 获取问题文本内容
+        const questionText = question.querySelector('p') ? question.querySelector('p').textContent : question.textContent;
+        
+        // 创建目录项
+        const tocItem = document.createElement('div');
+        tocItem.className = 'toc-item';
+        
+        const tocLink = document.createElement('a');
+        tocLink.className = 'toc-link';
+        tocLink.textContent = questionText;
+        tocLink.href = `#${id}`;
+        
+        // 点击目录项滚动到对应位置
+        tocLink.addEventListener('click', (e) => {
+          e.preventDefault();
+          question.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          
+          // 更新活跃状态
+          document.querySelectorAll('.toc-link').forEach(link => {
+            link.classList.remove('active');
+          });
+          tocLink.classList.add('active');
+        });
+        
+        tocItem.appendChild(tocLink);
+        tocList.appendChild(tocItem);
+      });
+    } else {
+      // 如果问题数量不大于1，隐藏目录
+      tocContainer.style.display = 'none';
+    }
   }
   
   // 关闭文章详情抽屉
@@ -638,6 +930,7 @@
       id: `article_${article.id}`,
       title: article.title,
       description: article.content && typeof article.content === 'string' ? article.content.substring(0, 100) + '...' : '暂无描述',
+      content: article.content, // 添加完整的content字段用于计算对话数量
       category: article.category || '未分类',
       date: new Date(article.create_at).toLocaleDateString('zh-CN'),
       create_at: article.create_at, // 保留原始时间戳用于排序
@@ -695,6 +988,10 @@
     const messageCountText = isArticle ? '收藏文章' : `${item.messageCount}条消息`;
     const deleteTitle = isArticle ? '删除文章' : '删除对话';
     
+    // 计算对话数量（基于mytag:start标签）
+    const dialogCount = (item.content || '').split('<!-- mytag:start -->').length - 1;
+    const dialogCountDisplay = dialogCount > 0 ? `<span class="dialog-count" title="包含 ${dialogCount} 条对话">${dialogCount}</span>` : '';
+    
     card.innerHTML = `
       <div class="card-content">
         <div class="card-main">
@@ -704,13 +1001,13 @@
         <div class="card-meta">
           <span class="card-category">
             <span class="category-name">${item.category}</span>
+            
             <svg class="edit-category-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" title="修改分类">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
             </svg>
           </span>
-          <span class="card-date">${item.date}</span>
-          <span class="card-message-count">${messageCountText}</span>
+          ${dialogCountDisplay}
           <button class="delete-btn" title="${deleteTitle}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="3,6 5,6 21,6"></polyline>
@@ -732,18 +1029,26 @@
     const deleteBtn = card.querySelector('.delete-btn');
     deleteBtn.addEventListener('click', (e) => {
       e.stopPropagation(); // 阻止事件冒泡
-      handleDeleteCard(item.id, item.type, item.originalId);
+      handleDeleteCard(item.id, item.type, item.originalId, deleteBtn);
     });
     
-    // 添加编辑分类图标事件
+    // 添加分类点击事件
+    const cardCategory = card.querySelector('.card-category');
+    cardCategory.addEventListener('click', (e) => {
+      e.stopPropagation(); // 阻止事件冒泡
+      openCategorySelectModal(item.id, item.category, item.type, item.originalId);
+    });
+    
+    // 添加编辑分类图标事件（保持兼容性）
     const editCategoryIcon = card.querySelector('.edit-category-icon');
     editCategoryIcon.addEventListener('click', (e) => {
       e.stopPropagation(); // 阻止事件冒泡
-      openEditCategoryModal(item.id, item.category, item.type, item.originalId);
+      openCategorySelectModal(item.id, item.category, item.type, item.originalId);
     });
     
-    // 添加卡片点击事件
-    card.addEventListener('click', () => {
+    // 添加卡片主体点击事件
+    const cardMain = card.querySelector('.card-main');
+    cardMain.addEventListener('click', () => {
       console.log('点击了卡片:', item.title, '类型:', item.type);
       if (isArticle) {
         // 显示文章详情
@@ -781,44 +1086,74 @@
   async function loadCategories() {
     try {
       categories = await categoryDB.getCategories();
-      renderNavCategories();
+      await renderNavCategories();
     } catch (error) {
       console.error('加载分类失败:', error);
     }
   }
   
-  function renderNavCategories() {
+  // 计算分类文章数量
+  async function getCategoryArticleCount(categoryName) {
+    try {
+      const result = await storage.get(['articles']);
+      const articles = result.articles || [];
+      
+      if (categoryName === '全部') {
+        return articles.length;
+      } else if (categoryName === '未分类') {
+        return articles.filter(article => !article.category || article.category === '未分类').length;
+      } else {
+        return articles.filter(article => article.category === categoryName).length;
+      }
+    } catch (error) {
+      console.error('计算分类文章数量失败:', error);
+      return 0;
+    }
+  }
+  
+  async function renderNavCategories() {
     const navList = document.querySelector('.nav-list');
     if (!navList) return;
     
-    // 保留"全部"项
+    // 保留"全部"项并更新其数量
     const allItem = navList.querySelector('.nav-item.active');
+    const isAllActive = allItem && allItem.querySelector('.nav-text').textContent === '全部';
     navList.innerHTML = '';
-    if (allItem) {
-      navList.appendChild(allItem);
-    }
+    
+    // 重新创建"全部"项
+    const allCount = await getCategoryArticleCount('全部');
+    const allNavItem = document.createElement('li');
+    allNavItem.className = isAllActive ? 'nav-item active' : 'nav-item';
+    allNavItem.innerHTML = `
+      <span class="nav-text">全部</span>
+      <span class="nav-count">${allCount}</span>
+    `;
+    allNavItem.addEventListener('click', (e) => handleNavClick(e));
+    navList.appendChild(allNavItem);
     
     // 添加"未分类"项
+    const uncategorizedCount = await getCategoryArticleCount('未分类');
     const uncategorizedItem = document.createElement('li');
     uncategorizedItem.className = 'nav-item';
     uncategorizedItem.innerHTML = `
       <span class="nav-text">未分类</span>
-      <span class="nav-count">15</span>
+      <span class="nav-count">${uncategorizedCount}</span>
     `;
     uncategorizedItem.addEventListener('click', (e) => handleNavClick(e));
     navList.appendChild(uncategorizedItem);
     
     // 添加自定义分类
-    categories.forEach(category => {
+    for (const category of categories) {
+      const categoryCount = await getCategoryArticleCount(category.name);
       const li = document.createElement('li');
       li.className = 'nav-item';
       li.innerHTML = `
         <span class="nav-text">${escapeHtml(category.name)}</span>
-        <span class="nav-count">0</span>
+        <span class="nav-count">${categoryCount}</span>
       `;
       li.addEventListener('click', (e) => handleNavClick(e));
       navList.appendChild(li);
-    });
+    }
   }
   
   function openCategoryModal() {
@@ -1022,53 +1357,228 @@
   function exportToPDF(article) {
     try {
       const title = article.title || '无标题';
-      const content = article.content || '';
-      const category = article.category || '未分类';
-      const date = new Date(article.create_at).toLocaleString('zh-CN');
       
-      // 创建一个新窗口用于打印
-      const printWindow = window.open('', '_blank');
-      const printContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>${title}</title>
-          <meta charset="utf-8">
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; margin: 40px; }
-            h1 { color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-            .meta { color: #666; font-size: 14px; margin-bottom: 20px; }
-            .content { white-space: pre-wrap; }
-          </style>
-        </head>
-        <body>
-          <h1>${title}</h1>
-          <div class="meta">
-            <p>分类：${category}</p>
-            <p>收藏时间：${date}</p>
-          </div>
-          <div class="content">${content.replace(/\n/g, '<br>')}</div>
-        </body>
-        </html>
-      `;
+      // 显示loading动画
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      if (loadingOverlay) {
+        loadingOverlay.style.display = 'flex';
+      }
       
-      printWindow.document.write(printContent);
-      printWindow.document.close();
+      // 获取drawer-main元素
+      const drawerMain = document.querySelector('.drawer-main');
+      if (!drawerMain) {
+        alert('未找到要导出的内容');
+        // 隐藏loading动画
+        if (loadingOverlay) {
+          loadingOverlay.style.display = 'none';
+        }
+        return;
+      }
       
-      // 等待内容加载完成后打印
-      setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-      }, 500);
+      // 显示加载提示
+      const exportBtn = document.getElementById('exportPdfBtn');
+      const originalText = exportBtn.innerHTML;
+      exportBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>导出中...';
+      exportBtn.disabled = true;
+      
+      // 保存原始样式
+      const originalHeight = drawerMain.style.height;
+      const originalOverflow = drawerMain.style.overflowY;
+      
+      // 临时修改样式以显示全部内容
+      drawerMain.style.height = 'auto';
+      drawerMain.style.overflowY = 'visible';
+      
+      // 使用html2canvas截取drawer-main的全部内容，调整参数减小文件体积
+      html2canvas(drawerMain, {
+        scale: 2, // 降低清晰度以减小文件大小
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false, // 关闭日志
+        removeContainer: true, // 移除容器
+        height: drawerMain.scrollHeight, // 使用滚动高度
+        width: drawerMain.scrollWidth // 使用滚动宽度
+      }).then(canvas => {
+        // 创建PDF
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4'
+        });
+        
+        // 设置页面边距
+        const margin = 15; // 15mm边距
+        const pageWidth = 210; // A4宽度
+        const pageHeight = 295; // A4高度
+        const contentWidth = pageWidth - (margin * 2); // 内容区域宽度
+        const contentHeight = pageHeight - (margin * 2); // 内容区域高度
+        
+        // 转换为JPEG格式以减小文件大小
+        const imgData = canvas.toDataURL('image/jpeg', 0.8); // 0.8质量压缩
+        
+        // 固定缩放比例，确保文字大小始终一致
+        const scale = contentWidth / canvas.width; // 固定缩放比例
+        const imgWidth = contentWidth;
+        const imgHeight = canvas.height * scale;
+        
+        // 计算每页可以显示的canvas高度（像素）- 基于固定的页面内容高度
+        const canvasHeightPerPage = contentHeight / scale;
+        
+        // 智能分页：寻找合适的分页点
+        const pageBreaks = [0]; // 第一页从0开始
+        let currentY = 0;
+        
+        while (currentY < canvas.height) {
+          let nextPageY = currentY + canvasHeightPerPage;
+          
+          // 如果已经到达末尾，直接添加
+          if (nextPageY >= canvas.height) {
+            if (currentY < canvas.height) {
+              pageBreaks.push(canvas.height);
+            }
+            break;
+          }
+          
+          // 在预期分页点前后寻找合适的断点（避免文字被切断）
+          const searchRange = canvasHeightPerPage * 0.1; // 搜索范围为页面高度的10%
+          const searchStart = Math.max(currentY + canvasHeightPerPage * 0.8, nextPageY - searchRange);
+          const searchEnd = Math.min(nextPageY + searchRange, canvas.height);
+          
+          // 获取搜索区域的图像数据来寻找空白行
+          const tempCanvas = document.createElement('canvas');
+          const tempCtx = tempCanvas.getContext('2d');
+          tempCanvas.width = canvas.width;
+          tempCanvas.height = searchEnd - searchStart;
+          tempCtx.drawImage(canvas, 0, searchStart, canvas.width, searchEnd - searchStart, 0, 0, canvas.width, searchEnd - searchStart);
+          
+          const imageData = tempCtx.getImageData(0, 0, canvas.width, searchEnd - searchStart);
+          const data = imageData.data;
+          
+          // 寻找空白行（亮度较高的行）
+          let bestBreakPoint = nextPageY;
+          let maxWhiteness = 0;
+          
+          for (let y = 0; y < searchEnd - searchStart; y += 2) { // 每2像素检查一次以提高性能
+            let rowWhiteness = 0;
+            let pixelCount = 0;
+            
+            // 检查这一行的亮度
+            for (let x = 0; x < canvas.width; x += 10) { // 每10像素采样一次
+              const index = (y * canvas.width + x) * 4;
+              if (index < data.length) {
+                const r = data[index];
+                const g = data[index + 1];
+                const b = data[index + 2];
+                const brightness = (r + g + b) / 3;
+                rowWhiteness += brightness;
+                pixelCount++;
+              }
+            }
+            
+            if (pixelCount > 0) {
+              const avgWhiteness = rowWhiteness / pixelCount;
+              if (avgWhiteness > maxWhiteness) {
+                maxWhiteness = avgWhiteness;
+                bestBreakPoint = searchStart + y;
+              }
+            }
+          }
+          
+          // 如果找到了较好的断点（亮度足够高），使用它；否则使用原始分页点
+          if (maxWhiteness > 200) { // 亮度阈值
+            pageBreaks.push(bestBreakPoint);
+            currentY = bestBreakPoint;
+          } else {
+            pageBreaks.push(nextPageY);
+            currentY = nextPageY;
+          }
+        }
+        
+        // 根据智能分页点生成PDF页面
+        for (let i = 0; i < pageBreaks.length - 1; i++) {
+          if (i > 0) {
+            pdf.addPage();
+          }
+          
+          const sourceY = pageBreaks[i];
+          const sourceHeight = pageBreaks[i + 1] - pageBreaks[i];
+          
+          // 使用固定缩放比例计算PDF中的实际高度
+          const destHeight = sourceHeight * scale;
+          
+          // 创建临时canvas来裁剪图片
+          const tempCanvas = document.createElement('canvas');
+          const tempCtx = tempCanvas.getContext('2d');
+          tempCanvas.width = canvas.width;
+          tempCanvas.height = sourceHeight;
+          
+          // 将对应部分绘制到临时canvas
+          tempCtx.drawImage(canvas, 0, sourceY, canvas.width, sourceHeight, 0, 0, canvas.width, sourceHeight);
+          
+          // 将裁剪后的图片添加到PDF
+          const pageImgData = tempCanvas.toDataURL('image/jpeg', 0.8);
+          pdf.addImage(pageImgData, 'JPEG', margin, margin, imgWidth, destHeight);
+        }
+        
+        // 下载PDF - 使用新的文件名格式
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const fileName = `ChatGPT-conversations-${timestamp}.pdf`;
+        pdf.save(fileName);
+        
+        // 恢复原始样式
+        drawerMain.style.height = originalHeight;
+        drawerMain.style.overflowY = originalOverflow;
+        
+        // 恢复按钮状态
+        exportBtn.innerHTML = originalText;
+        exportBtn.disabled = false;
+        
+        // 隐藏loading动画
+        if (loadingOverlay) {
+          loadingOverlay.style.display = 'none';
+        }
+        
+      }).catch(error => {
+        console.error('导出PDF失败:', error);
+        alert('导出PDF失败，请重试');
+        
+        // 确保在出错时也恢复样式
+        drawerMain.style.height = originalHeight;
+        drawerMain.style.overflowY = originalOverflow;
+        
+        // 恢复按钮状态
+        exportBtn.innerHTML = originalText;
+        exportBtn.disabled = false;
+        
+        // 隐藏loading动画
+        if (loadingOverlay) {
+          loadingOverlay.style.display = 'none';
+        }
+      });
+      
     } catch (error) {
       console.error('导出PDF失败:', error);
       alert('导出PDF失败，请重试');
+      
+      // 隐藏loading动画
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      if (loadingOverlay) {
+        loadingOverlay.style.display = 'none';
+      }
     }
   }
   
   // 导出为Markdown
   function exportToMarkdown(article) {
     try {
+      // 显示loading动画
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      if (loadingOverlay) {
+        loadingOverlay.style.display = 'flex';
+      }
+      
       const title = article.title || '无标题';
       const content = article.content || '';
       const category = article.category || '未分类';
@@ -1081,7 +1591,10 @@
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${title.replace(/[^\w\s-]/g, '')}.md`;
+      
+      // 使用新的文件名格式
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      link.download = `ChatGPT-conversations-${timestamp}.md`;
       
       // 触发下载
       document.body.appendChild(link);
@@ -1090,9 +1603,55 @@
       
       // 清理URL对象
       URL.revokeObjectURL(url);
+      
+      // 隐藏loading动画
+      if (loadingOverlay) {
+        loadingOverlay.style.display = 'none';
+      }
     } catch (error) {
       console.error('导出Markdown失败:', error);
       alert('导出Markdown失败，请重试');
+      
+      // 隐藏loading动画
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      if (loadingOverlay) {
+        loadingOverlay.style.display = 'none';
+      }
+    }
+  }
+
+  // 监听来自background的消息（仅在扩展环境中）
+  if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === 'refreshData') {
+        // 刷新数据
+        refreshData().then(() => {
+          sendResponse({ success: true });
+        }).catch((error) => {
+          console.error('刷新数据失败:', error);
+          sendResponse({ success: false, error: error.message });
+        });
+        return true; // 异步响应
+      }
+    });
+  }
+
+  // 刷新数据函数
+  async function refreshData() {
+    try {
+      // 重新加载分类数据
+      await loadCategories();
+      
+      // 重新加载文章数据
+      await loadArticles();
+      
+      // 重新渲染卡片
+      renderCards();
+      
+      console.log('数据已刷新');
+    } catch (error) {
+      console.error('刷新数据失败:', error);
+      throw error;
     }
   }
 

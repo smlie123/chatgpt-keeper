@@ -36,36 +36,7 @@
               </svg>
             </button>
           </h3>
-          <ul class="nav-list">
-            <li class="nav-item active">
-              <span class="nav-text">全部</span>
-              <span class="nav-count">128</span>
-            </li>
-            <li class="nav-item">
-              <span class="nav-text">未分类</span>
-              <span class="nav-count">15</span>
-            </li>
-            <li class="nav-item">
-              <span class="nav-text">工作</span>
-              <span class="nav-count">45</span>
-            </li>
-            <li class="nav-item">
-              <span class="nav-text">学习</span>
-              <span class="nav-count">32</span>
-            </li>
-            <li class="nav-item">
-              <span class="nav-text">技术</span>
-              <span class="nav-count">28</span>
-            </li>
-            <li class="nav-item">
-              <span class="nav-text">创意</span>
-              <span class="nav-count">15</span>
-            </li>
-            <li class="nav-item">
-              <span class="nav-text">其他</span>
-              <span class="nav-count">8</span>
-            </li>
-          </ul>
+          <ul class="nav-list"></ul>
         </div>
       </nav>
       
@@ -79,7 +50,9 @@
             </svg>
           </div>
           <div class="user-info">
-            <div class="user-name">wangjia jia</div>
+            <div class="user-name" title="wangjiasansan@gmail.com">wangjia jia
+              <div class="email-tooltip">wangjiasansan@gmail.com</div>
+            </div>
             <div class="user-status">免费版</div>
           </div>
           <svg class="dropdown-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -90,7 +63,6 @@
         <!-- 用户菜单弹窗 -->
         <div class="user-menu" id="userMenu">
           <div class="user-menu-header">
-           <div class="user-email">wangjiasansan@gmail.com</div>
            <div class="user-expire">过期时间：2025-12-31</div>
          </div>
          <div class="user-menu-item">
@@ -165,16 +137,6 @@
                 <rect x="14" y="3" width="7" height="7"></rect>
                 <rect x="3" y="14" width="7" height="7"></rect>
                 <rect x="14" y="14" width="7" height="7"></rect>
-              </svg>
-            </button>
-            <button class="view-btn" data-view="list" title="列表视图">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="8" y1="6" x2="21" y2="6"></line>
-                <line x1="8" y1="12" x2="21" y2="12"></line>
-                <line x1="8" y1="18" x2="21" y2="18"></line>
-                <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                <line x1="3" y1="18" x2="3.01" y2="18"></line>
               </svg>
             </button>
           </div>
@@ -268,13 +230,22 @@
       </div>
       
       <div class="drawer-body">
-
-        <div class="article-title">
-           <div id="drawerTitleText"></div>
+        <!-- 目录容器 -->
+        <div class="table-of-contents" id="tableOfContents" style="display: none;">
+          <div class="toc-header">目录</div>
+          <div class="toc-list" id="tocList">
+            <!-- 目录项将在这里动态生成 -->
+          </div>
         </div>
         
-        <div class="article-content" id="drawerContent">
-          <!-- 文章内容将在这里显示 -->
+        <div class="drawer-main">
+          <div class="article-title">
+             <div id="drawerTitleText"></div>
+          </div>
+          
+          <div class="article-content" id="drawerContent">
+            <!-- 文章内容将在这里显示 -->
+          </div>
         </div>
         
         <!-- Meta信息栏 -->
@@ -309,12 +280,52 @@
     </div>
   </div>
   
+  <!-- 分类选择弹窗 -->
+  <div id="categorySelectModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>选择分类</h2>
+        <button class="modal-close" id="categorySelectClose">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="category-select-list" id="categorySelectList">
+          <!-- 分类选项将在这里动态生成 -->
+        </div>
+        
+        <div class="modal-actions">
+          <button id="categorySelectCancel" class="btn-secondary">取消</button>
+          <button id="categorySelectConfirm" class="btn-primary">确定</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <script src="markdown-it.min.js"></script>
     <script src="katex.min.js"></script>
     <script src="markdown-it-katex.min.js"></script>
     <script src="markdown-it-task-lists.min.js"></script>
   <script src="markdown-it-emoji.min.js"></script>
   
+  <!-- PDF导出相关库 -->
+  <script src="html2canvas.min.js"></script>
+  <script src="jspdf.umd.min.js"></script>
+  
+  <!-- Loading 动画 -->
+  <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loading-spinner">
+      <div class="spinner"></div>
+      <div class="loading-text">正在导出...</div>
+    </div>
+  </div>
+
+  <script src="indexeddb.js"></script>
+  <script src="storage-api.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

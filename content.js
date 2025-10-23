@@ -46,25 +46,29 @@
         </svg>
       </div>
       <div class="sidebar-header">
-        <h3 class="sidebar-title">对话目录 <p class="sidebar-subtitle">点击问题快速定位</p></h3>
-        <div class="multi-select-controls" style="display: none;">
-          <button class="multi-select-toggle" id="multiSelectToggle">多选模式</button>
-          <button class="batch-save-btn" id="batchSaveBtn" style="display: none;">合并保存</button>
-          <button class="cancel-select-btn" id="cancelSelectBtn" style="display: none;">取消</button>
+        
+        <div class="view-more-btn" id="viewMoreBtn">
+          <span>View More</span>
+          <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9,18 15,12 9,6"></polyline>
+          </svg>
+        </div>
+        <div class="multi-select-controls">
+          <button class="enter-multi-select-btn" id="enterMultiSelectBtn">多选</button>
+          <div class="multi-select-actions" id="multiSelectActions" style="display: none;">
+            <label class="select-all-container">
+              <input type="checkbox" id="selectAllCheckbox" class="select-all-checkbox">
+              <span class="select-all-text">全选</span>
+            </label>
+            <button class="cancel-select-btn" id="cancelSelectBtn">取消</button>
+            <button class="batch-save-btn" id="batchSaveBtn">合并保存</button>
+          </div>
         </div>
       </div>
       <div class="questions-container">
         <div class="loading-state">
           <div class="loading-spinner"></div>
           <p>正在加载对话数据...</p>
-        </div>
-      </div>
-      <div class="sidebar-footer">
-        <div class="view-more-btn" id="viewMoreBtn">
-          <span>View More</span>
-          <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="9,18 15,12 9,6"></polyline>
-          </svg>
         </div>
       </div>
     `;
@@ -367,8 +371,7 @@
       });
     });
     
-    // 检查已收藏状态
-    checkFavoriteStatus(container);
+    // 已移除收藏状态检查逻辑
   }
   
   // 滚动到指定问题
@@ -523,24 +526,18 @@
   // 收藏功能相关函数
   async function handleFavoriteClick(messageId, btnElement) {
     try {
-      // 检查是否已收藏
-      const isFavorited = await checkIfFavorited(messageId);
-      
-      if (isFavorited) {
-        // 取消收藏
-        await removeFavorite(messageId);
-        btnElement.classList.remove('favorited');
-        console.log('已取消收藏:', messageId);
+      // 直接添加收藏，允许重复收藏
+      const success = await addToFavorites(messageId);
+      if (success) {
+        btnElement.classList.add('favorited');
+        showToast('已收藏，立即查看', 'success', true);
+        console.log('已添加收藏:', messageId);
       } else {
-        // 添加收藏
-        const success = await addToFavorites(messageId);
-        if (success) {
-          btnElement.classList.add('favorited');
-          console.log('已添加收藏:', messageId);
-        }
+        showToast('收藏失败，请重试', 'error');
       }
     } catch (error) {
       console.error('收藏操作失败:', error);
+      showToast('收藏操作失败', 'error');
     }
   }
   
@@ -589,108 +586,94 @@
     }
   }
   
-  async function checkFavoriteStatus(container) {
-    try {
-      const favoriteButtons = container.querySelectorAll('.favorite-btn');
-      for (const btn of favoriteButtons) {
-        const messageId = btn.dataset.messageId;
-        const isFavorited = await checkIfFavorited(messageId);
-        if (isFavorited) {
-          btn.classList.add('favorited');
-        }
-      }
-    } catch (error) {
-      console.error('检查收藏状态失败:', error);
-    }
-  }
+
   
-  // Chrome Storage操作函数
-  async function initFavoriteDB() {
-    // 使用chrome.storage.local，无需初始化
-    // 确保数据结构存在
-    const result = await chrome.storage.local.get(['categories', 'articles', 'favorites']);
-    
-    if (!result.categories) {
-      await chrome.storage.local.set({ categories: [] });
-    }
-    if (!result.articles) {
-      await chrome.storage.local.set({ articles: [] });
-    }
-    if (!result.favorites) {
-      await chrome.storage.local.set({ favorites: [] });
-    }
-    
-    return true; // 返回成功标识
-  }
+  // 存储操作现在通过background script处理
+  // initFavoriteDB函数已移除，数据存储由background管理
   
   async function saveArticle(article) {
-    await initFavoriteDB();
+    console.log('开始保存文章:', article.title);
     
-    // 获取当前文章列表
-    const result = await chrome.storage.local.get(['articles']);
-    const articles = result.articles || [];
-    
-    // 生成新的ID
-    const maxId = articles.length > 0 ? Math.max(...articles.map(a => a.id || 0)) : 0;
-    article.id = maxId + 1;
-    
-    // 添加文章
-    articles.push(article);
-    
-    // 保存回storage
-    await chrome.storage.local.set({ articles });
-    
-    return article.id;
+    try {
+      // 通过chrome.runtime.sendMessage发送数据给background
+      const response = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({
+          action: 'saveArticle',
+          data: article
+        }, (response) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve(response);
+          }
+        });
+      });
+      
+      if (response.success) {
+        console.log('文章保存成功，ID:', response.data);
+        return response.data;
+      } else {
+        throw new Error(response.error || '保存失败');
+      }
+    } catch (error) {
+      console.error('保存文章失败:', error.message || error);
+      console.error('文章数据:', article);
+      throw error;
+    }
   }
   
   async function saveFavoriteInfo(messageId) {
-    await initFavoriteDB();
-    
-    // 获取当前收藏列表
-    const result = await chrome.storage.local.get(['favorites']);
-    const favorites = result.favorites || [];
-    
-    // 检查是否已存在
-    if (!favorites.find(f => f.messageId === messageId)) {
-      favorites.push({ messageId, timestamp: new Date().toISOString() });
-      await chrome.storage.local.set({ favorites });
-    }
-    
+    console.log('收藏信息保存（兼容性函数）:', messageId);
+    // favorites表已移除，此函数仅用于兼容性，实际存储由saveArticle处理
     return true;
   }
   
-  async function checkIfFavorited(messageId) {
-    try {
-      await initFavoriteDB();
-      
-      // 获取收藏列表
-      const result = await chrome.storage.local.get(['favorites']);
-      const favorites = result.favorites || [];
-      
-      return favorites.some(f => f.messageId === messageId);
-    } catch (error) {
-      console.error('检查收藏状态失败:', error);
-      return false;
+  // checkIfFavorited函数已移除，不再检查收藏状态
+  
+  // removeFavorite函数已移除，不再支持取消收藏
+  
+  // Toast 提示功能
+  function showToast(message, type = 'success', clickable = false) {
+    // 移除已存在的toast
+    const existingToast = document.querySelector('.toast');
+    if (existingToast) {
+      existingToast.remove();
     }
+    
+    // 创建新的toast
+    const toast = document.createElement('div');
+    toast.className = `toast ${type === 'error' ? 'error' : ''} ${clickable ? 'clickable' : ''}`;
+    toast.textContent = message;
+    
+    // 如果可点击，添加点击事件
+    if (clickable) {
+      toast.style.cursor = 'pointer';
+      toast.addEventListener('click', () => {
+        // 打开options页面
+        chrome.runtime.sendMessage({action: 'openOptionsPage'});
+        toast.remove();
+      });
+    }
+    
+    document.body.appendChild(toast);
+    
+    // 显示动画
+    setTimeout(() => {
+      toast.classList.add('show');
+    }, 10);
+    
+    // 自动隐藏
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => {
+        if (toast.parentNode) {
+          toast.remove();
+        }
+      }, 300);
+    }, 3000);
   }
   
-  async function removeFavorite(messageId) {
-    await initFavoriteDB();
-    
-    // 获取当前数据
-    const result = await chrome.storage.local.get(['favorites', 'articles']);
-    let favorites = result.favorites || [];
-    let articles = result.articles || [];
-    
-    // 从收藏列表中删除
-    favorites = favorites.filter(f => f.messageId !== messageId);
-    
-    // 从文章列表中删除相关文章
-    articles = articles.filter(a => a.messageId !== messageId);
-    
-    // 保存更新后的数据
-    await chrome.storage.local.set({ favorites, articles });
-  }
+  // showUnfavoritePopover函数已移除，不再需要取消收藏功能
   
   function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -702,17 +685,14 @@
   
   // 初始化多选模式
   function initMultiSelectMode() {
-    const multiSelectToggle = sidebar.querySelector('#multiSelectToggle');
+    const enterMultiSelectBtn = sidebar.querySelector('#enterMultiSelectBtn');
     const batchSaveBtn = sidebar.querySelector('#batchSaveBtn');
     const cancelSelectBtn = sidebar.querySelector('#cancelSelectBtn');
-    const multiSelectControls = sidebar.querySelector('.multi-select-controls');
+    const selectAllCheckbox = sidebar.querySelector('#selectAllCheckbox');
     
-    // 显示多选控制按钮
-    multiSelectControls.style.display = 'flex';
-    
-    // 切换多选模式
-    multiSelectToggle.addEventListener('click', () => {
-      toggleMultiSelectMode();
+    // 进入多选模式按钮事件
+    enterMultiSelectBtn.addEventListener('click', () => {
+      enterMultiSelectMode();
     });
     
     // 批量保存
@@ -724,30 +704,31 @@
     cancelSelectBtn.addEventListener('click', () => {
       exitMultiSelectMode();
     });
+    
+    // 全选checkbox
+    selectAllCheckbox.addEventListener('change', () => {
+      handleSelectAll();
+    });
   }
   
-  // 切换多选模式
-  function toggleMultiSelectMode() {
-    isMultiSelectMode = !isMultiSelectMode;
-    const multiSelectToggle = sidebar.querySelector('#multiSelectToggle');
-    const batchSaveBtn = sidebar.querySelector('#batchSaveBtn');
-    const cancelSelectBtn = sidebar.querySelector('#cancelSelectBtn');
+  // 进入多选模式
+  function enterMultiSelectMode() {
+    isMultiSelectMode = true;
+    const multiSelectActions = sidebar.querySelector('#multiSelectActions');
+    const enterMultiSelectBtn = sidebar.querySelector('.enter-multi-select-btn');
     const questionItems = sidebar.querySelectorAll('.question-item');
     
-    if (isMultiSelectMode) {
-      multiSelectToggle.classList.add('active');
-      multiSelectToggle.textContent = '退出多选';
-      batchSaveBtn.style.display = 'inline-block';
-      cancelSelectBtn.style.display = 'inline-block';
-      
-      // 为所有问题项添加多选样式
-      questionItems.forEach(item => {
-        item.classList.add('multi-select-mode');
-        item.addEventListener('click', handleItemSelection);
-      });
-    } else {
-      exitMultiSelectMode();
+    // 隐藏进入多选按钮，显示多选操作按钮
+    if (enterMultiSelectBtn) {
+      enterMultiSelectBtn.style.display = 'none';
     }
+    multiSelectActions.style.display = 'flex';
+    
+    // 为所有问题项添加多选样式
+    questionItems.forEach(item => {
+      item.classList.add('multi-select-mode');
+      item.addEventListener('click', handleItemSelection);
+    });
   }
   
   // 退出多选模式
@@ -755,15 +736,17 @@
     isMultiSelectMode = false;
     selectedItems.clear();
     
-    const multiSelectToggle = sidebar.querySelector('#multiSelectToggle');
-    const batchSaveBtn = sidebar.querySelector('#batchSaveBtn');
-    const cancelSelectBtn = sidebar.querySelector('#cancelSelectBtn');
+    const multiSelectActions = sidebar.querySelector('#multiSelectActions');
+    const selectAllCheckbox = sidebar.querySelector('#selectAllCheckbox');
+    const enterMultiSelectBtn = sidebar.querySelector('.enter-multi-select-btn');
     const questionItems = sidebar.querySelectorAll('.question-item');
     
-    multiSelectToggle.classList.remove('active');
-    multiSelectToggle.textContent = '多选模式';
-    batchSaveBtn.style.display = 'none';
-    cancelSelectBtn.style.display = 'none';
+    // 隐藏多选操作按钮，显示进入多选按钮
+    multiSelectActions.style.display = 'none';
+    if (enterMultiSelectBtn) {
+      enterMultiSelectBtn.style.display = 'inline-block';
+    }
+    selectAllCheckbox.checked = false;
     
     // 移除所有问题项的多选样式
     questionItems.forEach(item => {
@@ -794,67 +777,137 @@
     const batchSaveBtn = sidebar.querySelector('#batchSaveBtn');
     batchSaveBtn.textContent = `合并保存 (${selectedItems.size})`;
     batchSaveBtn.disabled = selectedItems.size === 0;
+    
+    // 更新全选checkbox状态
+    updateSelectAllCheckbox();
+  }
+  
+  // 处理全选
+  function handleSelectAll() {
+    const selectAllCheckbox = sidebar.querySelector('#selectAllCheckbox');
+    const questionItems = sidebar.querySelectorAll('.question-item.multi-select-mode');
+    
+    if (selectAllCheckbox.checked) {
+      // 全选
+      questionItems.forEach(item => {
+        const messageId = item.dataset.messageId;
+        if (messageId && !selectedItems.has(messageId)) {
+          selectedItems.add(messageId);
+          item.classList.add('selected');
+        }
+      });
+    } else {
+      // 取消全选
+      selectedItems.clear();
+      questionItems.forEach(item => {
+        item.classList.remove('selected');
+      });
+    }
+    
+    // 更新批量保存按钮状态
+    const batchSaveBtn = sidebar.querySelector('#batchSaveBtn');
+    batchSaveBtn.textContent = `合并保存 (${selectedItems.size})`;
+    batchSaveBtn.disabled = selectedItems.size === 0;
+  }
+  
+  // 更新全选checkbox状态
+  function updateSelectAllCheckbox() {
+    const selectAllCheckbox = sidebar.querySelector('#selectAllCheckbox');
+    const questionItems = sidebar.querySelectorAll('.question-item.multi-select-mode');
+    const totalItems = questionItems.length;
+    
+    if (totalItems === 0) {
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = false;
+    } else if (selectedItems.size === totalItems) {
+      selectAllCheckbox.checked = true;
+      selectAllCheckbox.indeterminate = false;
+    } else if (selectedItems.size > 0) {
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = true;
+    } else {
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = false;
+    }
   }
   
   // 批量保存选中的项目
   async function batchSaveSelectedItems() {
     if (selectedItems.size === 0) {
-      alert('请先选择要保存的对话');
+      showToast('请先选择要保存的对话', 'error');
       return;
     }
     
     try {
       const conversationId = getCurrentConversationId();
       if (!conversationId) {
-        alert('无法获取当前对话ID');
+        showToast('无法获取当前对话ID', 'error');
         return;
       }
       
       // 从IndexedDB获取对话数据
       const conversationData = await readConversationFromIndexedDB(conversationId);
       if (!conversationData || !conversationData.messages) {
-        alert('无法获取对话数据');
+        showToast('无法获取对话数据', 'error');
         return;
       }
       
-      // 收集选中的消息内容
-      const selectedMessages = [];
-      const messageIds = Array.from(selectedItems).sort((a, b) => parseInt(a) - parseInt(b));
+      // 1. 点击合并保存时，获取所有被勾选的item的data-message-id
+      const selectedMessageIds = Array.from(selectedItems);
       
-      messageIds.forEach(messageId => {
-        const messageIndex = parseInt(messageId);
-        const currentMessage = conversationData.messages[messageIndex];
-        const nextMessage = conversationData.messages[messageIndex + 1];
+      if (selectedMessageIds.length === 0) {
+        showToast('没有选中任何对话', 'error');
+        return;
+      }
+      
+      // 2. 遍历每一个data-message-id，获取这个messageid对应的内容及其下一条记录的内容
+      const selectedPairs = [];
+      
+      selectedMessageIds.forEach(messageId => {
+        // 根据messageId在messages数组中找到对应的消息
+        const messageIndex = conversationData.messages.findIndex(msg => msg.id === messageId);
         
-        if (currentMessage) {
-          selectedMessages.push({
-            question: currentMessage.text || '',
-            answer: nextMessage ? nextMessage.text || '' : ''
-          });
+        if (messageIndex !== -1) {
+          const currentMessage = conversationData.messages[messageIndex];
+          const nextMessage = conversationData.messages[messageIndex + 1];
+          
+          if (currentMessage && nextMessage) {
+            selectedPairs.push({
+              questionText: currentMessage.text || '',
+              answerText: nextMessage.text || ''
+            });
+          }
         }
       });
       
-      if (selectedMessages.length === 0) {
-        alert('没有找到有效的消息内容');
+      if (selectedPairs.length === 0) {
+        showToast('没有找到有效的消息对', 'error');
         return;
       }
       
-      // 合并内容
-      const title = `批量保存 - ${new Date().toLocaleDateString()}`;
+      // 3. 将获取的内容合并成1个文章进行存储
+      // 使用第一个问题作为文章标题
+      const title = selectedPairs[0].questionText;
+      
+      // 合并所有内容，使用自定义注释标记包装问题标题
       let content = '';
-      selectedMessages.forEach((msg, index) => {
-        content += `## 问题 ${index + 1}\n${msg.question}\n\n`;
-        if (msg.answer) {
-          content += `## 回答 ${index + 1}\n${msg.answer}\n\n`;
+      selectedPairs.forEach((pair, index) => {
+        // 使用自定义注释标记包装问题标题，避免换行符造成解析错误
+        content += `<!-- mytag:start -->\n${pair.questionText}\n<!-- mytag:end -->\n\n`;
+        // 添加回答内容
+        content += `${pair.answerText}\n\n`;
+        
+        // 如果不是最后一个，添加分隔符
+        if (index < selectedPairs.length - 1) {
+          content += '---\n\n';
         }
-        content += '---\n\n';
       });
       
       // 保存到文章表
       await saveArticle({
         title: title,
         content: content,
-        category: 'batch-saved',
+        category: '未分类',
         create_at: new Date().toISOString()
       });
       
@@ -863,12 +916,12 @@
         await saveFavoriteInfo(messageId);
       }
       
-      alert(`成功保存 ${selectedMessages.length} 个对话到文章列表`);
+      showToast('已收藏，立即查看', 'success', true);
       exitMultiSelectMode();
       
     } catch (error) {
       console.error('批量保存失败:', error);
-      alert('保存失败，请重试');
+      showToast('保存失败，请重试', 'error');
     }
   }
   
