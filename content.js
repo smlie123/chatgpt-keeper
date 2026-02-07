@@ -5,6 +5,7 @@
   
   let sidebar = null;
   let isExpanded = false;
+  let preventNextToggleClick = false;
   let currentQuestions = [];
   let conversationId = null;
   let lastDataHash = null;
@@ -37,38 +38,40 @@
   function createSidebar() {
     if (sidebar) return;
     
+    ensureIconfontStylesheet();
+    
     sidebar = document.createElement('div');
     sidebar.className = 'chatgpt-sidebar';
     sidebar.innerHTML = `
       <div class="sidebar-toggle">
+        <img src="${chrome.runtime.getURL('icons/icon32.png')}" alt="Momory" class="sidebar-toggle-logo" />
         <svg class="sidebar-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="15,18 9,12 15,6"></polyline>
         </svg>
       </div>
+      <div class="sidebar-notice" id="sidebarNotice" style="display:none;">
+        <span class="notice-text">saving...</span>
+      </div>
       <div class="sidebar-header">
-        
         <div class="view-more-btn" id="viewMoreBtn">
-          <span>View More</span>
-          <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="9,18 15,12 9,6"></polyline>
-          </svg>
+          <i class="iconfont icon-home"></i>
         </div>
         <div class="multi-select-controls">
-          <button class="enter-multi-select-btn" id="enterMultiSelectBtn">多选</button>
+          <button class="enter-multi-select-btn" id="enterMultiSelectBtn">Select</button>
           <div class="multi-select-actions" id="multiSelectActions" style="display: none;">
             <label class="select-all-container">
               <input type="checkbox" id="selectAllCheckbox" class="select-all-checkbox">
-              <span class="select-all-text">全选</span>
+              <span class="select-all-text">All</span>
             </label>
-            <button class="cancel-select-btn" id="cancelSelectBtn">取消</button>
-            <button class="batch-save-btn" id="batchSaveBtn">合并保存</button>
+            <button class="cancel-select-btn" id="cancelSelectBtn">Cancel</button>
+            <button class="batch-save-btn" id="batchSaveBtn">Save</button>
           </div>
         </div>
       </div>
       <div class="questions-container">
         <div class="loading-state">
           <div class="loading-spinner"></div>
-          <p>正在加载对话数据...</p>
+          <p>Loading conversation data...</p>
         </div>
       </div>
     `;
@@ -78,7 +81,14 @@
     
     // 绑定切换事件
     const toggleBtn = sidebar.querySelector('.sidebar-toggle');
-    toggleBtn.addEventListener('click', toggleSidebar);
+    toggleBtn.addEventListener('click', (e) => {
+      if (preventNextToggleClick) {
+        preventNextToggleClick = false;
+        return;
+      }
+      toggleSidebar();
+    });
+    enableSidebarToggleDrag(toggleBtn);
     
     // 绑定view more按钮事件
     const viewMoreBtn = sidebar.querySelector('#viewMoreBtn');
@@ -93,6 +103,85 @@
     setTimeout(() => {
       loadConversationData();
     }, 1000);
+  }
+  
+  function ensureIconfontStylesheet() {
+    const existing = document.getElementById('chatkeeper-iconfont-css');
+    if (existing) return;
+    const link = document.createElement('link');
+    link.id = 'chatkeeper-iconfont-css';
+    link.rel = 'stylesheet';
+    link.href = chrome.runtime.getURL('iconfont/iconfont.css');
+    document.head.appendChild(link);
+  }
+
+  // 顶部通知栏开关：显示或隐藏“saving...”，用于图片保存过程
+  function toggleSavingNotice(show) {
+    if (!sidebar) return;
+    const notice = sidebar.querySelector('#sidebarNotice');
+    if (!notice) return;
+    notice.style.display = show ? 'block' : 'none';
+  }
+  
+  function enableSidebarToggleDrag(toggleBtn) {
+    if (!sidebar || !toggleBtn) return;
+    let startY = 0;
+    let startTop = 0;
+    let isDragging = false;
+    let didMove = false;
+    const storageKey = 'chatkeeper_sidebar_toggle_top';
+    try {
+      const saved = window.localStorage.getItem(storageKey);
+      if (saved !== null) {
+        const val = parseFloat(saved);
+        if (!Number.isNaN(val)) {
+          toggleBtn.style.top = val + 'px';
+          toggleBtn.style.bottom = 'auto';
+          toggleBtn.style.transform = '';
+        }
+      }
+    } catch (e) {}
+    function onMouseDown(e) {
+      if (e.button !== 0) return;
+      isDragging = true;
+      didMove = false;
+      startY = e.clientY;
+      startTop = toggleBtn.offsetTop;
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+      e.preventDefault();
+    }
+    function onMouseMove(e) {
+      if (!isDragging) return;
+      const deltaY = e.clientY - startY;
+      if (Math.abs(deltaY) > 2) {
+        didMove = true;
+      }
+      const sidebarRect = sidebar.getBoundingClientRect();
+      const toggleHeight = toggleBtn.offsetHeight || 0;
+      let newTop = startTop + deltaY;
+      const minTop = 0;
+      const maxTop = Math.max(0, sidebarRect.height - toggleHeight);
+      if (newTop < minTop) newTop = minTop;
+      if (newTop > maxTop) newTop = maxTop;
+      toggleBtn.style.top = newTop + 'px';
+      toggleBtn.style.bottom = 'auto';
+      toggleBtn.style.transform = '';
+    }
+    function onMouseUp() {
+      if (!isDragging) return;
+      isDragging = false;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      if (didMove) {
+        preventNextToggleClick = true;
+        const topValue = toggleBtn.offsetTop;
+        try {
+          window.localStorage.setItem(storageKey, String(topValue));
+        } catch (e) {}
+      }
+    }
+    toggleBtn.addEventListener('mousedown', onMouseDown);
   }
   
   // 切换侧栏展开/折叠
@@ -176,42 +265,30 @@
     
     try {
       isLoading = true;
-      conversationId = getCurrentConversationId();
-      if (!conversationId) {
-        showEmptyState('请打开一个具体的对话页面');
-        return;
-      }
-      
-      console.log('当前对话ID:', conversationId);
-      
-      // 读取IndexedDB数据
-      const conversationData = await readConversationFromIndexedDB(conversationId);
-      
-      if (conversationData && conversationData.messages) {
-        const currentMessageCount = conversationData.messages.length;
-        
-        // 计算新数据的哈希值
-        const newDataHash = calculateDataHash(conversationData);
-        
-        // 检查数据是否真的发生了变化（消息数量或内容变化）
+      // 优先从HTML解析用户问题，不从IndexedDB获取
+      const domQuestions = extractQuestionsFromDOM();
+      if (domQuestions.length > 0) {
+        const domData = { messages: domQuestions.map(q => ({ text: q.text })) };
+        const newDataHash = calculateDataHash(domData);
+        const currentMessageCount = domQuestions.length;
+
         if (newDataHash === lastDataHash && currentMessageCount === lastMessageCount) {
-          console.log('数据未发生变化，跳过更新');
+          console.log('DOM数据未变化，跳过更新');
           return;
         }
-        
-        console.log('检测到数据变化，更新界面 - 消息数量:', currentMessageCount);
+
         lastDataHash = newDataHash;
         lastMessageCount = currentMessageCount;
-        extractAndDisplayQuestions(conversationData.messages);
-        
-        // 启动消息数量监听
-        startMessageCountMonitoring();
-      } else {
-        showEmptyState('未找到对话数据');
+        currentQuestions = domQuestions;
+        displayQuestions();
+        return;
       }
+
+      // 如果DOM未解析到数据，则显示空状态（不从IndexedDB获取）
+      showEmptyState('No user questions found on page');
     } catch (error) {
       console.error('加载对话数据失败:', error);
-      showEmptyState('加载数据时出错');
+      showEmptyState('Error loading data');
     } finally {
       isLoading = false;
     }
@@ -291,11 +368,50 @@
       };
     });
   }
+
+  // 从HTML直接解析用户问题（You said: 的下一个元素）
+  function extractQuestionsFromDOM() {
+    try {
+      const articles = document.querySelectorAll('article');
+      const results = [];
+      let indexCounter = 1;
+
+      articles.forEach((article, idx) => {
+        const srYou = article.querySelector('h5.sr-only');
+        const isUser = !!(srYou && (srYou.textContent || '').trim().toLowerCase() === 'you said:');
+        if (!isUser) return;
+
+        let nextEl = srYou.nextElementSibling;
+        if (!nextEl) {
+          nextEl = srYou.parentElement && srYou.parentElement.nextElementSibling
+            ? srYou.parentElement.nextElementSibling
+            : article.querySelector('h5.sr-only + *');
+        }
+
+        const textRaw = nextEl ? (nextEl.innerText || nextEl.textContent || '') : '';
+        const cleaned = textRaw.trim();
+        if (!cleaned) return;
+
+        const turnId = article.getAttribute('data-turn-id') || `turn-${idx}`;
+        results.push({
+          index: indexCounter++,
+          text: cleaned,
+          messageId: turnId,
+          originalIndex: idx
+        });
+      });
+
+      return results;
+    } catch (e) {
+      console.error('从HTML结构解析用户问题失败:', e);
+      return [];
+    }
+  }
   
   // 提取并显示用户问题
   function extractAndDisplayQuestions(messages) {
     if (!Array.isArray(messages)) {
-      showEmptyState('消息数据格式错误');
+      showEmptyState('Message data format error');
       return;
     }
     
@@ -322,13 +438,13 @@
     const container = sidebar.querySelector('.questions-container');
     
     if (currentQuestions.length === 0) {
-      showEmptyState('当前对话中没有找到用户问题');
+      showEmptyState('No user questions found in current conversation');
       return;
     }
     
     const questionsHtml = currentQuestions.map(question => `
       <div class="question-item" data-message-id="${question.messageId}" data-index="${question.originalIndex}">
-        <div class="favorite-btn" data-message-id="${question.messageId}" title="收藏此问答">
+        <div class="favorite-btn" data-message-id="${question.messageId}" title="Favorite this Q&A">
           <svg class="star-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
           </svg>
@@ -375,30 +491,40 @@
   }
   
   // 滚动到指定问题
-  function scrollToQuestion(messageId, index) {
-    // 尝试多种方式定位元素
-    const selectors = [
-      `[data-message-id="${messageId}"]`,
-      `[id*="${messageId}"]`,
-      `.group:nth-child(${index + 1})`,
-      `[data-testid*="conversation-turn"]:nth-child(${index + 1})`
-    ];
-    
-    let targetElement = null;
-    
-    for (const selector of selectors) {
-      targetElement = document.querySelector(selector);
-      if (targetElement) break;
+  function scrollToQuestion(messageId, index, retryIfNotFound) {
+    if (typeof retryIfNotFound === 'undefined') {
+      retryIfNotFound = true;
     }
     
-    // 如果还是找不到，尝试通过文本内容查找
+    let targetElement = document.querySelector(`article[data-turn-id="${messageId}"]`);
+    
+    if (!targetElement) {
+      const selectors = [
+        `[data-message-id="${messageId}"]`,
+        `[id*="${messageId}"]`
+      ];
+      for (const selector of selectors) {
+        targetElement = document.querySelector(selector);
+        if (targetElement) break;
+      }
+    }
+    
+    if (!targetElement && typeof index === 'number' && index >= 0) {
+      const articles = document.querySelectorAll('article');
+      if (index < articles.length) {
+        targetElement = articles[index];
+      }
+    }
+    
     if (!targetElement) {
       const question = currentQuestions.find(q => q.messageId === messageId);
-      if (question) {
-        const allElements = document.querySelectorAll('div, p, span');
-        for (const el of allElements) {
-          if (el.textContent && el.textContent.includes(question.text.substring(0, 50))) {
-            targetElement = el;
+      if (question && question.text) {
+        const snippet = question.text.substring(0, 80);
+        const candidates = document.querySelectorAll('article p, article div, article span');
+        for (const el of candidates) {
+          const text = el.textContent || '';
+          if (text.includes(snippet)) {
+            targetElement = el.closest('article') || el;
             break;
           }
         }
@@ -408,18 +534,21 @@
     if (targetElement) {
       targetElement.scrollIntoView({
         behavior: 'smooth',
-        block: 'center'
+        block: 'center',
+        inline: 'nearest'
       });
-      
-      // 添加高亮效果
       targetElement.style.transition = 'background-color 0.3s ease';
       targetElement.style.backgroundColor = '#eff6ff';
       setTimeout(() => {
         targetElement.style.backgroundColor = '';
       }, 2000);
-    } else {
-      console.log('未找到目标元素，尝试滚动到页面顶部');
+    } else if (retryIfNotFound) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => {
+        scrollToQuestion(messageId, index, false);
+      }, 1200);
+    } else {
+      console.log('未找到目标元素');
     }
   }
   
@@ -428,12 +557,8 @@
     const container = sidebar.querySelector('.questions-container');
     container.innerHTML = `
       <div class="empty-state">
-        <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"></circle>
-          <path d="m9,9 6,6"></path>
-          <path d="m15,9 -6,6"></path>
-        </svg>
-        <p class="empty-state-text">${message}</p>
+        <i class="empty-state-icon iconfont icon-empty"></i>
+        <p class="empty-state-text">No conversation found. Start a chat in ChatGPT and an outline will appear here.</p>
       </div>
     `;
   }
@@ -530,58 +655,222 @@
       const success = await addToFavorites(messageId);
       if (success) {
         btnElement.classList.add('favorited');
-        showToast('已收藏，立即查看', 'success', true);
+        showToast('Saved! View it now', 'success', true);
         console.log('已添加收藏:', messageId);
       } else {
-        showToast('收藏失败，请重试', 'error');
+        showToast('Failed to favorite, please try again', 'error');
       }
     } catch (error) {
       console.error('收藏操作失败:', error);
-      showToast('收藏操作失败', 'error');
+      showToast('Favorite operation failed', 'error');
     }
   }
   
   async function addToFavorites(messageId) {
     try {
-      // 获取当前对话数据
-      const conversationData = await readConversationFromIndexedDB(conversationId);
+      // 1) 从 sidebar 的 item 找到对应的 data-message-id（已作为入参 messageId）
+      const itemEl = sidebar.querySelector(`.question-item[data-message-id="${messageId}"]`);
+      const itemIndex = itemEl ? parseInt(itemEl.dataset.index) : null;
+      
+      // 2) 根据第一步解析的 id，从页面中解析对应的 article 及其下一个 article
+      const articles = Array.from(document.querySelectorAll('article'));
+      let firstArticle = null;
+      if (itemIndex !== null && !Number.isNaN(itemIndex)) {
+        firstArticle = articles[itemIndex] || null;
+      }
+      if (!firstArticle) {
+        firstArticle = document.querySelector(`article[data-turn-id="${messageId}"]`);
+      }
+      if (!firstArticle) {
+        throw new Error('未找到第一个 article 元素');
+      }
+      const firstIdx = articles.indexOf(firstArticle);
+      const secondArticle = firstIdx >= 0 ? articles[firstIdx + 1] || null : null;
+      if (!secondArticle) {
+        throw new Error('未找到第二个 article 元素');
+      }
+      
+      // 3) 从 article 的 data-turn-id 获取到对应的 id
+      const firstTurnId = firstArticle.getAttribute('data-turn-id') || messageId;
+      let secondTurnId = secondArticle.getAttribute('data-turn-id') || null;
+      
+      // 读取当前对话数据（messages: [{id, text}]）
+      const convId = getCurrentConversationId();
+      const conversationData = await readConversationFromIndexedDB(convId);
       if (!conversationData || !conversationData.messages) {
         throw new Error('无法获取对话数据');
       }
-      
-      // 找到当前消息和下一条消息
       const messages = conversationData.messages;
-      const currentIndex = messages.findIndex(msg => msg.id === messageId);
       
-      if (currentIndex === -1) {
-        throw new Error('未找到指定消息');
+      // 标题：用第一个 article 的 id 对应的 text 作为标题
+      let titleMsg = messages.find(m => m.id === firstTurnId);
+      if (!titleMsg) {
+        const altFirstId = firstArticle.querySelector('[data-message-id]')?.getAttribute('data-message-id')
+          || firstArticle.id || null;
+        if (altFirstId) {
+          titleMsg = messages.find(m => m.id === altFirstId) || titleMsg;
+        }
+      }
+      const title = titleMsg ? (titleMsg.text || '') : '';
+      // 日志：如果能从IndexedDB按ID找到标题消息，输出该条及其next
+      if (titleMsg) {
+        const tIdx = messages.findIndex(m => m.id === firstTurnId);
+        const tNext = tIdx >= 0 ? messages[tIdx + 1] : null;
+        
+        
+      }
+      if (!title) {
+        throw new Error('未找到标题内容');
       }
       
-      const currentMessage = messages[currentIndex];
-      const nextMessage = messages[currentIndex + 1];
-      
-      if (!nextMessage) {
-        throw new Error('未找到回答消息');
+      // 内容：优先用IndexedDB回答；否则按ID定位article，取第一个img；再兜底
+      let contentAnswer = '';
+      let answerType = 'markdown';
+      if (secondTurnId) {
+        let answerMsg = messages.find(m => m.id === secondTurnId);
+        if (answerMsg && answerMsg.text) {
+          // 日志：按ID命中回答，输出该条及其next
+          const aIdx = messages.findIndex(m => m.id === secondTurnId);
+          const aNext = aIdx >= 0 ? messages[aIdx + 1] : null;
+          
+          
+          // 若文本仅包含辅助标题（如“ChatGPT said:”）或过短，优先尝试从DOM提取图片
+          const trimmed = (answerMsg.text || '').trim();
+          const looksLikeHeaderOnly = /^chatgpt\s*said:?$/i.test(trimmed) || trimmed.length <= 12;
+          if (looksLikeHeaderOnly) {
+            const targetArticle = document.querySelector(`article[data-turn-id="${secondTurnId}"]`) || secondArticle;
+            const firstImg = targetArticle ? targetArticle.querySelector('img') : null;
+            if (firstImg) {
+              contentAnswer = `<img src="${firstImg.src}" alt="${escapeHtml(firstImg.alt || '')}">`;
+              answerType = 'img';
+            } else {
+              contentAnswer = trimmed;
+              answerType = 'markdown';
+            }
+          } else {
+            contentAnswer = answerMsg.text;
+            answerType = 'markdown';
+          }
+        } else {
+          // 尝试使用article内部的其他ID匹配messages
+          const altSecondId = secondArticle.querySelector('[data-message-id]')?.getAttribute('data-message-id')
+            || secondArticle.id || null;
+          if (altSecondId) {
+            const altMsg = messages.find(m => m.id === altSecondId);
+            if (altMsg && altMsg.text) {
+              
+              const aIdx2 = messages.findIndex(m => m.id === altSecondId);
+              const aNext2 = aIdx2 >= 0 ? messages[aIdx2 + 1] : null;
+              
+              contentAnswer = altMsg.text;
+              answerType = 'markdown';
+            }
+          }
+          if (!contentAnswer) {
+            const targetArticle = document.querySelector(`article[data-turn-id="${secondTurnId}"]`) || secondArticle;
+            const firstImg = targetArticle ? targetArticle.querySelector('img') : null;
+            if (firstImg) {
+              contentAnswer = `<img src="${firstImg.src}" alt="${escapeHtml(firstImg.alt || '')}">`;
+              answerType = 'img';
+            }
+          }
+        }
+      }
+      if (!contentAnswer) {
+        const firstImg = secondArticle.querySelector('img');
+        if (firstImg) {
+          contentAnswer = `<img src="${firstImg.src}" alt="${escapeHtml(firstImg.alt || '')}">`;
+          answerType = 'img';
+        } else {
+          contentAnswer = (secondArticle.innerText || secondArticle.textContent || '').trim();
+          answerType = 'markdown';
+        }
       }
       
-      // 创建文章数据
+      // 创建文章数据，content 改为数组结构
+      const contentArray = [{ id: firstTurnId, title: title, answer: contentAnswer, type: answerType }];
       const article = {
-        title: currentMessage.text, // 保存完整标题
-        content: nextMessage.text, // 只保存回答内容，不包含重复的问题
-        category: '未分类',
+        title: title,
+        content: contentArray,
+        category: 'Uncategorized',
         create_at: new Date().toISOString(),
         messageId: messageId
       };
+
+      // 在用户点击收藏的手势上下文中，尝试保存图片到本地授权文件夹
+      const answersForDownload = Array.isArray(article.content)
+        ? article.content.filter(e => e.type === 'img').map(e => e.answer).join('\n')
+        : '';
+      const hasImgInContent = /<img\s+/i.test(answersForDownload) || /!\[[^\]]*\]\([^\)]+\)/.test(answersForDownload);
+      try {
+        if (hasImgInContent) {
+          toggleSavingNotice(true);
+        }
+        if (window.FileManager) {
+          // 若尚未授权，会弹出目录选择窗口；已授权则直接写入
+          await window.FileManager.ensureAuthorizedDirectory({ interactive: true });
+          // 将内容中的 <img> 下载并写入授权目录，记录到 IndexedDB 的 images store
+          const imgSaveResults = await window.FileManager.saveImagesFromHtml(answersForDownload);
+          const imagesMeta = (imgSaveResults || []).filter(r => r && r.result && r.result.success && r.result.filename)
+            .map(r => ({ originalSrc: r.src, filename: r.result.filename }));
+
+          // 基于保存结果，尝试将内容数组中的图片引用替换为本地占位标识 ck-local://filename
+          try {
+            const transformHtml = (html) => {
+              const wrapper = document.createElement('div');
+              wrapper.innerHTML = html;
+              const imgs = Array.from(wrapper.querySelectorAll('img'));
+              for (const img of imgs) {
+                const src = img.getAttribute('src') || '';
+                const meta = imagesMeta.find(m => m.originalSrc === src);
+                if (meta) {
+                  img.setAttribute('data-src', `ck-local://${meta.filename}`);
+                  img.setAttribute('data-local-filename', meta.filename);
+                }
+              }
+              return wrapper.innerHTML;
+            };
+            const transformMarkdown = (text) => {
+              let updated = text;
+              if (imagesMeta.length > 0) {
+                for (const meta of imagesMeta) {
+                  const escaped = meta.originalSrc.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                  const mdRegex = new RegExp(`(!\\[[^\\]]*\\]\\()${escaped}(\\))`, 'g');
+                  updated = updated.replace(mdRegex, `$1ck-local://${meta.filename}$2`);
+                }
+              }
+              return updated;
+            };
+            article.content = article.content.map(entry => {
+              if (entry.type !== 'img') return entry; // 仅处理 img 类型条目
+              const hasHtmlImg = /<img\s+/i.test(entry.answer);
+              const newAnswer = hasHtmlImg ? transformHtml(entry.answer) : transformMarkdown(entry.answer);
+              return { ...entry, answer: newAnswer };
+            });
+          } catch (replaceErr) {
+            console.warn('替换文章内容中的图片引用失败，继续保存原内容：', replaceErr);
+          }
+
+          // 在文章数据中存储 imagesMeta，便于后续渲染时解析
+          article.imagesMeta = imagesMeta;
+        } else {
+          console.warn('FileManager 未加载，跳过图片保存。');
+        }
+      } catch (imgErr) {
+        console.warn('保存图片到本地失败或被取消：', imgErr);
+      } finally {
+        toggleSavingNotice(false);
+      }
       
       // 保存到文章表
       await saveArticle(article);
       
-      // 保存到收藏信息表
-      await saveFavoriteInfo(messageId);
+      
       
       return true;
     } catch (error) {
       console.error('添加收藏失败:', error);
+      showToast(error.message || 'Favorite operation failed', 'error');
       return false;
     }
   }
@@ -622,11 +911,7 @@
     }
   }
   
-  async function saveFavoriteInfo(messageId) {
-    console.log('收藏信息保存（兼容性函数）:', messageId);
-    // favorites表已移除，此函数仅用于兼容性，实际存储由saveArticle处理
-    return true;
-  }
+  
   
   // checkIfFavorited函数已移除，不再检查收藏状态
   
@@ -635,14 +920,14 @@
   // Toast 提示功能
   function showToast(message, type = 'success', clickable = false) {
     // 移除已存在的toast
-    const existingToast = document.querySelector('.toast');
+    const existingToast = document.querySelector('.ck-toast');
     if (existingToast) {
       existingToast.remove();
     }
     
     // 创建新的toast
     const toast = document.createElement('div');
-    toast.className = `toast ${type === 'error' ? 'error' : ''} ${clickable ? 'clickable' : ''}`;
+    toast.className = `ck-toast ${type === 'error' ? 'error' : ''} ${clickable ? 'clickable' : ''}`;
     toast.textContent = message;
     
     // 如果可点击，添加点击事件
@@ -775,7 +1060,7 @@
     
     // 更新批量保存按钮状态
     const batchSaveBtn = sidebar.querySelector('#batchSaveBtn');
-    batchSaveBtn.textContent = `合并保存 (${selectedItems.size})`;
+    batchSaveBtn.textContent = `Save (${selectedItems.size}) in 1`;
     batchSaveBtn.disabled = selectedItems.size === 0;
     
     // 更新全选checkbox状态
@@ -806,7 +1091,7 @@
     
     // 更新批量保存按钮状态
     const batchSaveBtn = sidebar.querySelector('#batchSaveBtn');
-    batchSaveBtn.textContent = `合并保存 (${selectedItems.size})`;
+    batchSaveBtn.textContent = `Save (${selectedItems.size}) in 1`;
     batchSaveBtn.disabled = selectedItems.size === 0;
   }
   
@@ -834,94 +1119,241 @@
   // 批量保存选中的项目
   async function batchSaveSelectedItems() {
     if (selectedItems.size === 0) {
-      showToast('请先选择要保存的对话', 'error');
+      showToast('Please select conversations to save first', 'error');
       return;
     }
     
     try {
       const conversationId = getCurrentConversationId();
       if (!conversationId) {
-        showToast('无法获取当前对话ID', 'error');
+        showToast('Unable to get current conversation ID', 'error');
         return;
       }
       
       // 从IndexedDB获取对话数据
       const conversationData = await readConversationFromIndexedDB(conversationId);
       if (!conversationData || !conversationData.messages) {
-        showToast('无法获取对话数据', 'error');
+        showToast('Unable to get conversation data', 'error');
         return;
       }
       
-      // 1. 点击合并保存时，获取所有被勾选的item的data-message-id
-      const selectedMessageIds = Array.from(selectedItems);
+      // 1. 点击合并保存时，按 sidebar DOM 中的显示顺序获取被勾选的 data-message-id
+      const domOrderIds = Array.from(sidebar.querySelectorAll('.question-item'))
+        .map(el => el.getAttribute('data-message-id'))
+        .filter(Boolean);
+      const selectedMessageIds = domOrderIds.filter(id => selectedItems.has(id));
       
       if (selectedMessageIds.length === 0) {
-        showToast('没有选中任何对话', 'error');
+        showToast('No conversations selected', 'error');
         return;
       }
       
-      // 2. 遍历每一个data-message-id，获取这个messageid对应的内容及其下一条记录的内容
+      // 2. 遍历每一个 data-message-id，解析出其对应的 article 及其下一条 article
       const selectedPairs = [];
+      const allArticles = Array.from(document.querySelectorAll('article'));
       
       selectedMessageIds.forEach(messageId => {
-        // 根据messageId在messages数组中找到对应的消息
-        const messageIndex = conversationData.messages.findIndex(msg => msg.id === messageId);
+        const itemEl = sidebar.querySelector(`.question-item[data-message-id="${messageId}"]`);
+        const itemIndex = itemEl ? parseInt(itemEl.dataset.index) : null;
+        let firstArticle = null;
+        if (itemIndex !== null && !Number.isNaN(itemIndex)) {
+          firstArticle = allArticles[itemIndex] || null;
+        }
+        if (!firstArticle) {
+          firstArticle = document.querySelector(`article[data-turn-id="${messageId}"]`);
+        }
+        if (!firstArticle) {
+          return; // 跳过未找到的项
+        }
+        const firstIdx = allArticles.indexOf(firstArticle);
+        const secondArticle = firstIdx >= 0 ? allArticles[firstIdx + 1] || null : null;
+        if (!secondArticle) {
+          return; // 没有第二条则跳过
+        }
         
-        if (messageIndex !== -1) {
-          const currentMessage = conversationData.messages[messageIndex];
-          const nextMessage = conversationData.messages[messageIndex + 1];
-          
-          if (currentMessage && nextMessage) {
-            selectedPairs.push({
-              questionText: currentMessage.text || '',
-              answerText: nextMessage.text || ''
-            });
+        const firstTurnId = firstArticle.getAttribute('data-turn-id') || messageId;
+        let secondTurnId = secondArticle.getAttribute('data-turn-id') || null;
+        
+        // 问题（标题部分）：用第一个 article 的 id 对应的 text
+        let qMsg = conversationData.messages.find(m => m.id === firstTurnId);
+        if (!qMsg) {
+          const altFirstId = firstArticle.querySelector('[data-message-id]')?.getAttribute('data-message-id')
+            || firstArticle.id || null;
+          if (altFirstId) {
+            qMsg = conversationData.messages.find(m => m.id === altFirstId) || qMsg;
           }
         }
+        const questionText = qMsg ? (qMsg.text || '') : '';
+        // 日志：如果能从IndexedDB按ID找到问题消息，输出该条及其next
+        if (qMsg) {
+          const qIdx = conversationData.messages.findIndex(m => m.id === firstTurnId);
+          const qNext = qIdx >= 0 ? conversationData.messages[qIdx + 1] : null;
+          
+        }
+        if (!questionText) {
+          return; // 标题为空则不加入
+        }
+        
+        // 回答（内容部分）：优先messages按ID；否则按ID定位article取首图；再兜底
+        let answerText = '';
+        let answerSource = 'unknown';
+        if (secondTurnId) {
+          let aMsg = conversationData.messages.find(m => m.id === secondTurnId);
+          if (!aMsg) {
+            const altSecondId = secondArticle.querySelector('[data-message-id]')?.getAttribute('data-message-id')
+              || secondArticle.id || null;
+            if (altSecondId) {
+              aMsg = conversationData.messages.find(m => m.id === altSecondId) || aMsg;
+              secondTurnId = altSecondId;
+            }
+          }
+          if (aMsg && aMsg.text) {
+            // 日志：按ID命中回答，输出该条及其next
+            const aIdx = conversationData.messages.findIndex(m => m.id === secondTurnId);
+            const aNext = aIdx >= 0 ? conversationData.messages[aIdx + 1] : null;
+            
+            const trimmed = (aMsg.text || '').trim();
+            const looksLikeHeaderOnly = /^chatgpt\s*said:?$/i.test(trimmed) || trimmed.length <= 12;
+            if (looksLikeHeaderOnly) {
+              const targetArticle = document.querySelector(`article[data-turn-id="${secondTurnId}"]`) || secondArticle;
+              const firstImg = targetArticle ? targetArticle.querySelector('img') : null;
+              if (firstImg) {
+                answerText = `<img src="${firstImg.src}" alt="${escapeHtml(firstImg.alt || '')}">`;
+                answerSource = 'html';
+              } else {
+                answerText = trimmed;
+                answerSource = 'indexeddb';
+              }
+            } else {
+              answerText = aMsg.text;
+              answerSource = 'indexeddb';
+            }
+          } else {
+            const targetArticle = document.querySelector(`article[data-turn-id="${secondTurnId}"]`) || secondArticle;
+            const firstImg = targetArticle ? targetArticle.querySelector('img') : null;
+            if (firstImg) {
+              answerText = `<img src="${firstImg.src}" alt="${escapeHtml(firstImg.alt || '')}">`;
+              answerSource = 'html';
+            }
+          }
+        }
+        if (!answerText) {
+          const firstImg = secondArticle.querySelector('img');
+          if (firstImg) {
+            answerText = `<img src="${firstImg.src}" alt="${escapeHtml(firstImg.alt || '')}">`;
+            answerSource = 'html';
+          } else {
+            answerText = (secondArticle.innerText || secondArticle.textContent || '').trim();
+            answerSource = 'html';
+          }
+        }
+        
+        // 记录类型：若由图片 DOM 构造则为 img，否则 markdown
+        const pairType = /<img\s/i.test(answerText) ? 'img' : 'markdown';
+        selectedPairs.push({ id: firstTurnId, questionText, answerText, type: pairType, source: answerSource });
       });
       
       if (selectedPairs.length === 0) {
-        showToast('没有找到有效的消息对', 'error');
+        showToast('No valid message pairs found', 'error');
         return;
       }
       
-      // 3. 将获取的内容合并成1个文章进行存储
-      // 使用第一个问题作为文章标题
+      // 3. 构建数组内容并存储为一篇文章
       const title = selectedPairs[0].questionText;
-      
-      // 合并所有内容，使用自定义注释标记包装问题标题
-      let content = '';
-      selectedPairs.forEach((pair, index) => {
-        // 使用自定义注释标记包装问题标题，避免换行符造成解析错误
-        content += `<!-- mytag:start -->\n${pair.questionText}\n<!-- mytag:end -->\n\n`;
-        // 添加回答内容
-        content += `${pair.answerText}\n\n`;
-        
-        // 如果不是最后一个，添加分隔符
-        if (index < selectedPairs.length - 1) {
-          content += '---\n\n';
+      const contentArray = selectedPairs.map(pair => ({
+        id: pair.id,
+        title: pair.questionText,
+        answer: pair.answerText,
+        type: pair.type || (/<img\s/i.test(pair.answerText) ? 'img' : 'markdown')
+      }));
+
+      // 在批量保存的用户手势上下文中，逐项保存图片（仅 source=html 的 img 条目），并替换为本地占位标识
+      let imagesMeta = [];
+      try {
+        let didEnsure = false;
+        let anyNeedsSave = false;
+        const sourceById = new Map(selectedPairs.map(p => [p.id, p.source]));
+
+        const transformHtmlWithMeta = (html, metas) => {
+          const wrapper = document.createElement('div');
+          wrapper.innerHTML = html;
+          const imgs = Array.from(wrapper.querySelectorAll('img'));
+          for (const img of imgs) {
+            const src = img.getAttribute('src') || '';
+            const meta = metas.find(m => m.originalSrc === src);
+            if (meta) {
+              img.setAttribute('data-src', `ck-local://${meta.filename}`);
+              img.setAttribute('data-local-filename', meta.filename);
+            }
+          }
+          return wrapper.innerHTML;
+        };
+        const transformMarkdownWithMeta = (text, metas) => {
+          let updated = text;
+          if (metas.length > 0) {
+            for (const meta of metas) {
+              const escaped = meta.originalSrc.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const mdRegex = new RegExp(`(!\\[[^\\]]*\\]\\()${escaped}(\\))`, 'g');
+              updated = updated.replace(mdRegex, `$1ck-local://${meta.filename}$2`);
+            }
+          }
+          return updated;
+        };
+
+        for (let i = 0; i < contentArray.length; i++) {
+          const entry = contentArray[i];
+          const srcType = sourceById.get(entry.id);
+          if (entry.type !== 'img') continue;
+          if (srcType !== 'html') continue; // 仅处理来自 HTML 解析的内容
+
+          const hasImg = /<img\s+/i.test(entry.answer) || /!\[[^\]]*\]\([^\)]+\)/.test(entry.answer);
+          if (!hasImg) continue;
+          anyNeedsSave = true;
+
+          if (window.FileManager) {
+            if (!didEnsure) {
+              await window.FileManager.ensureAuthorizedDirectory({ interactive: true });
+              didEnsure = true;
+            }
+            const imgSaveResults = await window.FileManager.saveImagesFromHtml(entry.answer);
+            const perMeta = (imgSaveResults || []).filter(r => r && r.result && r.result.success && r.result.filename)
+              .map(r => ({ originalSrc: r.src, filename: r.result.filename }));
+            imagesMeta.push(...perMeta);
+            const hasHtmlImg = /<img\s+/i.test(entry.answer);
+            contentArray[i].answer = hasHtmlImg
+              ? transformHtmlWithMeta(entry.answer, perMeta)
+              : transformMarkdownWithMeta(entry.answer, perMeta);
+          } else {
+            console.warn('FileManager 未加载，跳过本地图片保存。');
+          }
         }
-      });
+        if (anyNeedsSave) {
+          toggleSavingNotice(true);
+        }
+      } catch (imgErr) {
+        console.warn('逐项保存图片到本地失败或被取消：', imgErr);
+      } finally {
+        toggleSavingNotice(false);
+      }
       
       // 保存到文章表
       await saveArticle({
         title: title,
-        content: content,
-        category: '未分类',
-        create_at: new Date().toISOString()
+        content: contentArray,
+        category: 'Uncategorized',
+        create_at: new Date().toISOString(),
+        imagesMeta: imagesMeta,
+        source: 'batch'
       });
       
-      // 保存收藏信息
-      for (const messageId of selectedItems) {
-        await saveFavoriteInfo(messageId);
-      }
       
-      showToast('已收藏，立即查看', 'success', true);
+      
+      showToast('Saved! View it now', 'success', true);
       exitMultiSelectMode();
       
     } catch (error) {
       console.error('批量保存失败:', error);
-      showToast('保存失败，请重试', 'error');
+      showToast('Save failed, please try again', 'error');
     }
   }
   
@@ -932,6 +1364,23 @@
     } else if (request.action === 'reloadData') {
       loadConversationData();
       sendResponse({status: 'reloaded'});
+    } else if (request.action === 'setDirectoryHandle') {
+      (async () => {
+        try {
+          if (window.FileManager && request.handle) {
+            await window.FileManager.saveDirectoryHandle(request.handle);
+            const authorized = await window.FileManager.verifyPermission(request.handle, 'readwrite');
+            showToast(authorized ? 'Save folder updated' : 'Save folder updated, permission required here', 'success');
+            sendResponse({ ok: true, authorized });
+          } else {
+            sendResponse({ ok: false, error: 'No handle provided or FileManager missing' });
+          }
+        } catch (e) {
+          console.warn('设置目录句柄失败:', e);
+          sendResponse({ ok: false, error: String(e) });
+        }
+      })();
+      return true;
     }
   });
   

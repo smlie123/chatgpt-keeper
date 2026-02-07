@@ -16,11 +16,15 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   display: flex;
   flex-direction: column;
+  /* 默认不拦截页面点击，避免遮挡原页面 */
+  pointer-events: none;
 }
 
 /* 展开状态 */
 .chatgpt-sidebar.expanded {
   transform: translateX(0);
+  /* 展开后恢复交互 */
+  pointer-events: auto;
 }
 
 /* 折叠按钮 */
@@ -37,14 +41,23 @@
   border-radius: 8px 0 0 8px;
   cursor: pointer;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
+  /* 切换按钮始终可点击 */
+  pointer-events: auto;
 }
 
 .sidebar-toggle:hover {
   background: #f9fafb;
+}
+
+.sidebar-toggle-logo {
+  width: 20px;
+  height: 20px;
+  margin-bottom: 4px;
 }
 
 .sidebar-toggle-icon {
@@ -65,6 +78,25 @@
   position: relative;
 }
 
+/* 顶部通知栏（saving...） */
+.sidebar-notice {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.45); /* 半透明背景覆盖 */
+  color: #ffffff;
+  font-size: 13px;
+  padding: 8px 12px;
+  z-index: 20; /* 高层级以覆盖头部 */
+  text-align: center;
+  pointer-events: none; /* 不阻止下方元素交互 */
+}
+.sidebar-notice .notice-text {
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
 .sidebar-title {
   font-size: 16px;
   font-weight: 600;
@@ -78,30 +110,33 @@
   margin: 4px 0 0 0;
 }
  
- .enter-multi-select-btn {
-  display: inline-block;
-  padding: 4px 8px;
-  background: #3b82f6;
-  color: white;
-  border: 1px solid #3b82f6;
-  border-radius: 4px;
+.enter-multi-select-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #f9fafb;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 500;
   transition: all 0.2s;
   margin-left: 8px;
-  width: 42px;
+  width: auto;
 }
- 
- .enter-multi-select-btn:hover {
-   background: #2563eb;
-   border-color: #2563eb;
- }
+
+.enter-multi-select-btn:hover {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+}
 
 /* 问题列表容器 */
 .questions-container {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 0 46px 0; /* 为底部按钮留出空间 */
+  padding: 8px 0 10px 0; /* 为底部按钮留出空间 */
 }
 
 /* 问题项 */
@@ -149,7 +184,7 @@
 .star-icon {
   width: 16px;
   height: 16px;
-  color: #d1d5db;
+  color: #888;
   fill: currentColor;
   stroke: none;
   transition: color 0.2s ease;
@@ -163,35 +198,45 @@
   color: #fbbf24;
 }
 
-/* Toast 提示样式 */
-.toast {
+/* Toast 提示样式（命名空间，避免影响原页面） */
+.ck-toast {
   position: fixed;
   top: 20px;
   right: 20px;
-  background: #10b981;
-  color: white;
-  padding: 12px 16px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: #000000;
+  color: #ffffff;
+  padding: 8px 12px;
+  border: 1px solid #000000;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   z-index: 10000;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 400;
   opacity: 0;
   transform: translateX(100%);
   transition: all 0.3s ease;
+  /* 默认不拦截点击，避免遮挡原页面按钮 */
+  pointer-events: none;
 }
 
-.toast.show {
+.ck-toast.show {
   opacity: 1;
   transform: translateX(0);
 }
 
-.toast.error {
-  background: #ef4444;
+.ck-toast.error {
+  background: #000000;
+  color: #ffffff;
+  border-color: #000000;
 }
 
-/* Popover 二次确认样式 */
-.popover {
+/* 当需要可点击（例如引导打开设置页）时启用点击 */
+.ck-toast.clickable {
+  pointer-events: auto;
+}
+
+/* Popover 二次确认样式（命名空间，避免与站点同名类冲突） */
+.ck-popover {
   position: absolute;
   background: white;
   border: 1px solid #e5e7eb;
@@ -205,24 +250,24 @@
   transition: all 0.2s ease;
 }
 
-.popover.show {
+.ck-popover.show {
   opacity: 1;
   transform: scale(1);
 }
 
-.popover-content {
+.ck-popover-content {
   margin-bottom: 12px;
   font-size: 14px;
   color: #374151;
 }
 
-.popover-actions {
+.ck-popover-actions {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
 }
 
-.popover-btn {
+.ck-popover-btn {
   padding: 6px 12px;
   border: 1px solid #d1d5db;
   border-radius: 4px;
@@ -233,17 +278,17 @@
   transition: all 0.2s ease;
 }
 
-.popover-btn:hover {
+.ck-popover-btn:hover {
   background: #f9fafb;
 }
 
-.popover-btn.primary {
+.ck-popover-btn.primary {
   background: #ef4444;
   color: white;
   border-color: #ef4444;
 }
 
-.popover-btn.primary:hover {
+.ck-popover-btn.primary:hover {
   background: #dc2626;
 }
 
@@ -251,11 +296,7 @@
 .multi-select-controls {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  width: 100%;
-  flex-basis: 100%;
-  text-decoration: none;
-  border-bottom: none;
+  gap: 6px;
   align-items: flex-start;
   justify-content: center;
 }
@@ -263,9 +304,11 @@
 .multi-select-actions {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 6px;
   flex-wrap: nowrap;
+  padding: 4px 0px;
+  
 }
 
 .select-all-container {
@@ -278,9 +321,29 @@
 }
 
 .select-all-checkbox {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   cursor: pointer;
+  border: 2px solid #d1d5db;
+  border-radius: 3px;
+  background: white;
+}
+
+.select-all-checkbox:indeterminate {
+  
+  background-image: linear-gradient(to right, #3b82f6 0%, #3b82f6 100%);
+  background-size: 8px 2px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.select-all-checkbox:checked {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20,6 9,17 4,12"></polyline></svg>');
+  background-size: 12px;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .select-all-text {
@@ -298,15 +361,15 @@
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
-  width: 42px;
+  width: auto;
 }
 
 .batch-save-btn {
   padding: 4px 8px;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  background: #f9fafb;
-  color: #374151;
+  border: 1px solid #111827;
+  border-radius: 999px;
+  background: #111827;
+  color: #ffffff;
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
@@ -321,29 +384,25 @@
 }
 
 .multi-select-toggle.active {
-  background: #3b82f6;
+  background: #000000;
   color: white;
-  border-color: #3b82f6;
-}
-
-.batch-save-btn {
-  background: #10b981;
-  color: white;
-  border-color: #10b981;
+  border-color: #000000;
 }
 
 .batch-save-btn:hover {
-  background: #059669;
+  background: #111827;
+  opacity: 0.9;
 }
 
 .cancel-select-btn {
-  background: #ef4444;
-  color: white;
-  border-color: #ef4444;
+  background: #ffffff;
+  color: #4b5563;
+  border-color: #d1d5db;
+  border-radius: 999px;
 }
 
 .cancel-select-btn:hover {
-  background: #dc2626;
+  background: #f5f5f5;
 }
 
 /* 多选模式下的问题项样式 */
@@ -384,8 +443,8 @@
 }
 
 .question-item.active {
-  background: #eff6ff;
-  border-left: 3px solid #3b82f6;
+  background: #f5f5f5;
+  border-left: 3px solid #000000;
 }
 
 .question-text {
@@ -414,11 +473,10 @@
   color: #6b7280;
 }
 
-.empty-state-icon {
-  width: 48px;
-  height: 48px;
+.questions-container .empty-state-icon {
+  font-size: 32px;
   margin: 0 auto 16px;
-  opacity: 0.5;
+  opacity: 0.4;
 }
 
 .empty-state-text {
@@ -582,4 +640,50 @@ body.chatgpt-sidebar-active {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* 侧栏底部slogan */
+.sidebar-footer {
+  margin-top: auto;
+  padding: 12px 16px;
+  background: #f5f5f5;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* 保存包含图片时的 Loading 指示（侧边栏底部）*/
+.sidebar-footer.loading {
+  opacity: 0.7;
+  position: relative;
+}
+.sidebar-footer.loading::after {
+  content: '';
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #9ca3af; /* gray-400 */
+  border-top-color: #111827;  /* gray-900 */
+  border-radius: 50%;
+  animation: ck-spin 0.9s linear infinite;
+}
+
+@keyframes ck-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.slogan {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #000000;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.footer-logo {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
 }

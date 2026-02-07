@@ -109,17 +109,15 @@ class StorageAPI {
         for (let i = 0; i < articles.length; i++) {
           const article = articles[i];
           try {
-            // 确保文章有必要的字段
-            if (!article.messageId) {
-              console.warn(`文章${i}缺少messageId，跳过`);
-              continue;
-            }
-            
-            // 使用put而不是add，避免主键冲突
-            await this.db.put('articles', {
+            const messageId =
+              article.messageId ||
+              (article.id != null ? String(article.id) : String(Date.now()) + '_' + i);
+            const toSave = {
               ...article,
+              messageId,
               timestamp: article.timestamp || Date.now()
-            });
+            };
+            await this.db.put('articles', toSave);
             console.log(`成功添加文章${i+1}/${articles.length}`);
           } catch (articleError) {
             console.error(`添加文章${i}失败:`, articleError.message || articleError);
@@ -178,15 +176,34 @@ class StorageAPI {
     await this.init();
     
     // 确保文章有必要的字段
+    let normalizedContent = null;
+    if (Array.isArray(article.content)) {
+      normalizedContent = article.content.map(entry => ({
+        id: entry.id || article.messageId || (article.id || Date.now().toString()),
+        title: entry.title || article.title || '',
+        answer: entry.answer || '',
+        type: entry.type || (/<img\s/i.test(entry.answer || '') ? 'img' : 'markdown')
+      }));
+    } else {
+      // 兼容旧格式：将字符串内容包装为一个条目
+      normalizedContent = [{
+        id: article.messageId || (article.id || Date.now().toString()),
+        title: article.title || '',
+        answer: article.content || '',
+        type: 'markdown'
+      }];
+    }
+
     const articleToSave = {
       id: article.id || Date.now().toString(),
       title: article.title || '',
-      content: article.content || '',
+      content: normalizedContent,
       url: article.url || '',
       timestamp: article.timestamp || Date.now(),
-      create_at: article.create_at || new Date().toISOString(), // 添加create_at字段支持
+      create_at: article.create_at || new Date().toISOString(),
       category: article.category || 'default',
-      messageId: article.messageId || ''
+      messageId: article.messageId || '',
+      imagesMeta: Array.isArray(article.imagesMeta) ? article.imagesMeta : []
     };
     
     try {

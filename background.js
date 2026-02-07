@@ -1,90 +1,120 @@
 // Background script for ChatGPT对话目录
 
-// 导入IndexedDB和存储API
+// 导入 IndexedDB 和存储 API
 importScripts('indexeddb.js', 'storage-api.js');
+
+// Track the home tab ID
+let homeTabId = null;
 
 // 监听来自content script的消息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Background收到消息:', request);
   
-  // 处理保存文章请求
   if (request.action === 'saveArticle') {
-    handleSaveArticle(request.data)
-      .then(result => {
-        console.log('文章保存成功:', result);
+    (async () => {
+      try {
+        const articleData = request.data || {};
+        const result = await handleSaveArticle(request.data);
         sendResponse({ success: true, data: result });
-      })
-      .catch(error => {
-        console.error('文章保存失败:', error);
+      } catch (error) {
         sendResponse({ success: false, error: error.message });
-      });
-    return true; // 异步响应
+      }
+    })();
+    return true;
   }
-  
-  // 处理保存分类请求
+
+  if (request.action === 'broadcastDirectoryHandle') {
+    (async () => {
+      try {
+        const dirHandle = request.handle;
+        // Only broadcast to relevant tabs
+        const targetUrls = [
+          "https://chatgpt.com/*",
+          "https://chat.openai.com/*"
+        ];
+        chrome.tabs.query({ url: targetUrls }, (tabs) => {
+          tabs.forEach((tab) => {
+            if (tab.id) {
+              try {
+                chrome.tabs.sendMessage(tab.id, { action: 'setDirectoryHandle', handle: dirHandle });
+              } catch (e) {}
+            }
+          });
+          sendResponse({ success: true });
+        });
+      } catch (err) {
+        sendResponse({ success: false, error: err?.message || String(err) });
+      }
+    })();
+    return true;
+  }
+
   if (request.action === 'saveCategory') {
     handleSaveCategory(request.data)
       .then(result => {
-        console.log('分类保存成功:', result);
         sendResponse({ success: true, data: result });
       })
       .catch(error => {
-        console.error('分类保存失败:', error);
         sendResponse({ success: false, error: error.message });
       });
-    return true; // 异步响应
-  }
-  
-  if (request.action === 'openOptionsPage') {
-    // 检查是否已有options页面打开
-    const optionsUrl = chrome.runtime.getURL('options.html');
-    
-    chrome.tabs.query({}, (tabs) => {
-      const existingTab = tabs.find(tab => tab.url && tab.url.startsWith(optionsUrl));
-      
-      if (existingTab) {
-        // 如果已有options页面，激活它并发送刷新数据消息
-        chrome.tabs.update(existingTab.id, { active: true }, () => {
-          // 发送消息给options页面刷新数据
-          chrome.tabs.sendMessage(existingTab.id, { action: 'refreshData' }, (response) => {
-            console.log('Options页面已激活并刷新数据');
-            sendResponse({ success: true });
-          });
-        });
-      } else {
-        // 如果没有options页面，创建新的
-        chrome.tabs.create({
-          url: optionsUrl
-        }).then(() => {
-          console.log('Options页面已打开');
-          sendResponse({ success: true });
-        }).catch((error) => {
-          console.error('打开Options页面失败:', error);
-          sendResponse({ success: false, error: error.message });
-        });
-      }
-    });
-    
-    // 返回true表示异步响应
     return true;
   }
   
-  // 其他消息类型的处理可以在这里添加
-  
-});
+  if (request.action === 'openOptionsPage') {
+    const optionsUrl = chrome.runtime.getURL('home.html');
+    
+    // Function to create a new tab and save its ID
+    const createNewHomeTab = () => {
+      chrome.tabs.create({ url: optionsUrl }, (tab) => {
+        if (chrome.runtime.lastError) {
+          sendResponse({ success: false, error: chrome.runtime.lastError.message });
+        } else {
+          homeTabId = tab.id; // Save the new tab ID
+          sendResponse({ success: true });
+        }
+      });
+    };
 
-// 扩展安装或更新时的处理
-chrome.runtime.onInstalled.addListener((details) => {
-  console.log('扩展已安装/更新:', details.reason);
-  
-  if (details.reason === 'install') {
-    console.log('首次安装ChatGPT对话目录扩展');
-  } else if (details.reason === 'update') {
-    console.log('扩展已更新到版本:', chrome.runtime.getManifest().version);
+    if (homeTabId !== null) {
+      // Check if the saved tab ID still exists
+      chrome.tabs.get(homeTabId, (tab) => {
+        if (chrome.runtime.lastError || !tab) {
+          // Tab doesn't exist (user closed it), recreate it
+          homeTabId = null;
+          createNewHomeTab();
+        } else {
+          // Tab exists, activate and refresh it
+          chrome.tabs.update(homeTabId, { active: true }, () => {
+             if (chrome.runtime.lastError) {
+                // If activation fails, fallback to create
+                homeTabId = null;
+                createNewHomeTab();
+                return;
+             }
+             // Send refresh message
+             try {
+                chrome.tabs.sendMessage(homeTabId, { action: 'refreshData' }, () => {
+                  // Ignore response if message fails (e.g. content script not ready), tab is already activated
+                  sendResponse({ success: true });
+                });
+             } catch (e) {
+                sendResponse({ success: true });
+             }
+          });
+        }
+      });
+    } else {
+      // No saved tab ID, create new one
+      createNewHomeTab();
+    }
+    
+    return true;
   }
 });
+chrome.runtime.onInstalled.addListener((details) => {
+  console.log('扩展已安装/更新:', details.reason);
+});
 
-// 扩展启动时的处理
 chrome.runtime.onStartup.addListener(() => {
   console.log('ChatGPT对话目录扩展已启动');
 });

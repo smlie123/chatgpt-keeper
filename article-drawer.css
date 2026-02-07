@@ -132,8 +132,8 @@
   border-radius: 4px;
   transition: all 0.2s ease;
   cursor: pointer;
-  /* 最多显示3行，超出显示省略号 */
-  -webkit-line-clamp: 3;
+  /* 最多显示4行，超出显示省略号 */
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -167,18 +167,25 @@
    background: #f5f5f5;
   color: #333;
   text-align: left;
+  /* 强制换行设置，支持超长连续文本、URL、代码等 */
+  white-space: normal;
+  overflow-wrap: anywhere; /* 优先允许任意位置换行 */
+  word-wrap: break-word;   /* 兼容旧浏览器 */
+  word-break: break-word;  /* 作为补充以在部分浏览器生效 */
+  hyphens: auto;           /* 支持断词连字符（浏览器支持时） */
 }
 
 /* 自定义问题标题样式 - 与.article-title一致 */
 .my-question {
   width: 100%;
   font-size: 16px;
-  margin-bottom: 25px;
+  margin-top: 25px;
   padding-bottom: 12px;
   text-align: right;
 }
 
 .my-question p {
+  max-width: 80%;
   padding: 10px 14px;
   border-radius: 10px;
   display: inline-block;
@@ -259,7 +266,6 @@
 .meta-time {
   font-size: 12px;
   color: #666;
-  font-weight: 500;
 }
 
 .meta-actions {
@@ -295,5 +301,118 @@
 @media (max-width: 768px) {
   .drawer-content {
     width: 100%;
+  }
+}
+
+/* 打印样式 */
+@media print {
+  /* 页面设置 */
+  @page {
+    margin: 2cm 1.5cm 2.5cm 1.5cm;
+    size: A4;
+    
+    @bottom-center {
+      content: "Exported by Momory (Chrome Extension)";
+      font-size: 10pt;
+      color: #666;
+      margin-top: 1cm;
+    }
+  }
+  
+  /* 隐藏不需要打印的元素 */
+  .drawer-overlay,
+  .drawer-header .close-btn,
+  .meta-actions,
+  .export-btn,
+  .table-of-contents,
+  .meta-time,
+  .meta-info,
+  .article-meta-bar {
+    display: none !important;
+  }
+  
+  /* 确保文章抽屉在打印时可见 */
+  .article-drawer {
+    position: static !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 100% !important;
+    height: auto !important;
+    z-index: auto !important;
+  }
+  
+  .drawer-content {
+    position: static !important;
+    transform: none !important;
+    width: 100% !important;
+    height: auto !important;
+    box-shadow: none !important;
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .drawer-main {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-width: 100% !important;
+  }
+  
+  /* 确保文章内容完整显示 */
+  .markdown-body {
+    font-size: 12pt !important;
+    line-height: 1.4 !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+  
+  /* 确保所有文本元素不会被裁切 */
+  .markdown-body * {
+    max-width: 100% !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+  
+  /* 分页控制 */
+  .my-question {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  /* 隐藏主页面内容，只显示抽屉内容 */
+  body > *:not(.article-drawer) {
+    display: none !important;
+  }
+  
+  /* 确保页面背景为白色 */
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* 处理代码块和预格式化文本 */
+  pre, code {
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    max-width: 100% !important;
+  }
+  
+  /* 处理表格 */
+  table {
+    width: 100% !important;
+    table-layout: fixed !important;
+  }
+  
+  table td, table th {
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
   }
 }

@@ -51,16 +51,9 @@ body {
 }
 
 .logo-icon {
-  width: 28px;
-  height: 28px;
-  background: #242424;
+  width: 32px;
+  height: 32px;
   border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: bold;
-  font-size: 14px;
 }
 
 .logo-text {
@@ -72,7 +65,6 @@ body {
 .logo-subtitle {
   font-size: 12px;
   color: #767676;
-  margin-left: 36px;
 }
 
 .sidebar-nav {
@@ -107,6 +99,31 @@ body {
   background-color: #f5f5f5;
 }
 
+/* Loading 状态样式 */
+.sidebar-footer.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.sidebar-footer.loading .user-profile::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e6e6e6;
+  border-top: 2px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  transform: translateY(-50%);
+}
+
+@keyframes spin {
+  0% { transform: translateY(-50%) rotate(0deg); }
+  100% { transform: translateY(-50%) rotate(360deg); }
+}
+
 .user-avatar {
   width: 32px;
   height: 32px;
@@ -116,6 +133,13 @@ body {
   align-items: center;
   justify-content: center;
   color: #666;
+}
+
+.user-avatar.logged-in {
+  background: #e3f2fd;
+  color: #1976d2;
+  font-weight: 600;
+  font-size: 14px;
 }
 
 .user-info {
@@ -130,6 +154,9 @@ body {
   line-height: 1.2;
   position: relative;
   cursor: pointer;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .email-tooltip {
@@ -152,9 +179,9 @@ body {
 }
 
 .user-name:hover .email-tooltip {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(5px);
 }
 
 .user-status {
@@ -162,6 +189,18 @@ body {
   color: #767676;
   line-height: 1.2;
 }
+
+.btn-login-link {
+  margin-top: 6px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: #000;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-login-link:hover { text-decoration: underline; }
 
 .dropdown-arrow {
   color: #999;
@@ -182,8 +221,8 @@ body {
   border: 1px solid #e6e6e6;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  padding: 8px 10px;
-  margin-bottom: 8px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
   opacity: 0;
   visibility: hidden;
   transform: translateY(10px);
@@ -198,9 +237,50 @@ body {
 }
 
 .user-menu-header {
-  padding: 12px 16px 8px;
+  padding: 8px 12px 6px;
   border-bottom: 1px solid #f0f0f0;
 }
+
+.menu-line { margin-bottom: 6px; }
+
+.plan-tag { font-size: 12px; color: #242424; font-weight: 600; }
+.plan-tag.pro {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #000;
+  color: #fff;
+  border-radius: 10px;
+  padding: 3px 10px;
+  font-size: 12px;
+}
+
+.btn-upgrade {
+  background: #000;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btn-upgrade:hover {
+  opacity: 0.9;
+}
+
+.btn-manage {
+  background: #fff;
+  color: #000;
+  border: 1px solid #000;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.btn-manage:hover { opacity: 1; }
 
 .user-email {
   font-size: 13px;
@@ -212,14 +292,14 @@ body {
 .user-expire {
   font-size: 11px;
   color: #999;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .user-menu-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
+  gap: 8px;
+  padding: 8px 14px;
   cursor: pointer;
   transition: background-color 0.2s;
   font-size: 14px;
@@ -247,12 +327,11 @@ body {
 .user-menu-divider {
   height: 1px;
   background: #f0f0f0;
-  margin: 8px 0;
+  margin: 6px 0;
 }
 
 .nav-section-title {
   font-size: 12px;
-  font-weight: 600;
   color: #6b6b6b;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -398,6 +477,30 @@ body {
   gap: 16px;
 }
 
+/* 布局切换按钮样式 */
+.layout-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background-color: #ffffff;
+  border: 1px solid #e6e6e6;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #333333;
+  transition: all 0.2s ease;
+}
+
+.layout-toggle-btn:hover {
+  background-color: #f1f1f1;
+  border-color: #d0d0d0;
+}
+
+.layout-toggle-btn .iconfont {
+  font-size: 16px;
+}
+
 .view-toggle {
   display: flex;
   background-color: #f8f9fa;
@@ -539,6 +642,16 @@ body {
   column-fill: balance;
 }
 
+/* 等高卡片布局：仅改卡片高度为200px，其他不变 */
+#masonryContainer.equal-height .card {
+  height: 200px;
+}
+
+/* 等高模式下，卡片标题最多展示3行 */
+#masonryContainer.equal-height .card-title {
+  -webkit-line-clamp: 3;
+}
+
 @media (max-width: 1400px) {
   .masonry-container {
     column-count: 3;
@@ -579,6 +692,7 @@ body {
   height: auto; /* 高度自动撑开 */
   display: flex;
   flex-direction: column;
+  position: relative; /* 供删除按钮绝对定位 */
 }
 
 .card:hover {
@@ -658,6 +772,82 @@ body {
   padding: 0 20px 20px;
 }
 
+/* 数据导入/导出确认弹窗：层次更分明、文字更大 */
+.confirm-modal .modal-content {
+  max-width: 560px;
+  max-height: 70vh;
+}
+
+.confirm-modal .modal-header h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111;
+}
+
+.confirm-modal .modal-body p,
+.confirm-modal .modal-body .section-note {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+  margin: 6px 0;
+}
+
+.confirm-modal .section-title { margin: 10px 0 4px; }
+
+.confirm-modal .section-list { margin: 4px 0 6px; }
+
+.confirm-modal .warning-text {
+  background: #fff5f5;
+  border: 1px solid #ffd6d6;
+  border-left: 4px solid #d32f2f;
+  color: #b71c1c;
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.confirm-modal .modal-actions .btn-primary,
+.confirm-modal .modal-actions .btn-secondary,
+.confirm-modal .modal-actions .btn-danger {
+  font-size: 13px;
+  padding: 8px 14px;
+}
+
+.confirm-modal .modal-actions { padding-top: 12px; }
+
+.export-history-list {
+  max-height: 260px;
+  overflow-y: auto;
+  margin-top: 4px;
+  padding-right: 4px;
+}
+
+.export-history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 8px 0;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 13px;
+}
+
+.export-history-meta {
+  color: #111827;
+}
+
+.export-history-counts {
+  text-align: right;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.export-history-empty {
+  font-size: 13px;
+  color: #6b7280;
+  padding-top: 4px;
+}
+
 .add-category-section {
   display: flex;
   gap: 8px;
@@ -709,6 +899,7 @@ body {
   border-radius: 4px;
   margin-bottom: 2px;
   background-color: transparent;
+  position: relative; /* 供分类删除 Popconfirm 居中定位 */
 }
 
 .category-item:hover {
@@ -817,7 +1008,8 @@ body {
 .card-meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 8px;
   font-size: 12px;
   color: #999999;
 }
@@ -863,6 +1055,34 @@ body {
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s ease;
+}
+
+.card .delete-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  opacity: 0;
+  visibility: hidden;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.card:hover .delete-btn {
+  opacity: 1;
+  visibility: visible;
+}
+
+
+/* 等高模式下，描述最多展示3行 */
+#masonryContainer.equal-height .card {
+  height: 220px;
+}
+
+#masonryContainer.equal-height .card-description {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .card-category:hover {
@@ -917,7 +1137,8 @@ body {
   text-align: center;
 }
 
-.empty-icon {
+.empty-state .empty-icon {
+  font-size: 50px;
   width: 64px;
   height: 64px;
   color: #d0d0d0;
@@ -1015,7 +1236,17 @@ body {
   justify-content: flex-end;
   gap: 12px;
   padding-top: 16px;
-  border-top: 1px solid #eee;
+}
+
+.modal-actions .link-button {
+  border: none;
+  background: transparent;
+  color: #4b5563;
+  font-size: 12px;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  margin-right: auto;
 }
 
 .btn-primary {
@@ -1054,16 +1285,69 @@ body {
   border-color: #999;
 }
 
-/* 删除确认popover样式 */
-.delete-popover {
-  background: white;
+/* 危险操作按钮（Restore） */
+.btn-danger {
+  background-color: #d32f2f;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s ease;
+}
+
+.btn-danger:hover {
+  background-color: #b71c1c;
+}
+
+.btn-danger:disabled {
+  background-color: #e0e0e0;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.local-data-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
   border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  padding: 16px;
-  min-width: 200px;
+  background-color: #fef3c7;
+  border: 1px solid #facc6b;
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.local-data-warning-text {
+  flex: 1;
+}
+
+.local-data-warning-close {
+  border: none;
+  background: transparent;
+  color: #92400e;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+/* 删除确认 Popconfirm 样式（参考 Ant Design Vue） */
+.delete-popover {
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid rgba(5, 5, 5, 0.06);
+  box-shadow: 0 6px 16px -8px rgba(0,0,0,.08),
+              0 9px 28px 0 rgba(0,0,0,.05),
+              0 12px 48px 16px rgba(0,0,0,.03);
+  padding: 12px 16px;
+  min-width: 240px;
   opacity: 0;
-  transform: translateY(-10px);
-  transition: all 0.2s ease;
+  transform: translateY(-8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .delete-popover.show {
@@ -1071,44 +1355,134 @@ body {
   transform: translateY(0);
 }
 
-.delete-popover .popover-content p {
+.delete-popover .popover-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.delete-popover .popover-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #faad14; /* AntDV 的警示黄色 */
+  color: #fff;
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.delete-popover .popover-text {
+  font-size: 14px;
+  color: #333;
+}
+
+.delete-popover .popover-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.delete-popover .popover-btn {
+  padding: 6px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  background: #fff;
+  color: rgba(0,0,0,0.88);
+  transition: all 0.2s ease;
+}
+
+.delete-popover .cancel-btn:hover {
+  border-color: #bfbfbf;
+}
+
+.delete-popover .confirm-btn {
+  background: #1677ff;
+  border-color: #1677ff;
+  color: #fff;
+}
+
+.delete-popover .confirm-btn:hover {
+  background: #1355cc;
+  border-color: #1355cc;
+}
+
+/* Popconfirm 箭头（底部，中间） */
+.delete-popover::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-left: 1px solid rgba(5,5,5,0.06);
+  border-top: 1px solid rgba(5,5,5,0.06);
+}
+
+/* 卡片内置的简洁 Popconfirm（文章删除使用） */
+.card-delete-popover {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  padding: 16px;
+  min-width: 220px;
+  opacity: 0;
+  transform-origin: center;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 20; /* 高于卡片内部元素 */
+}
+
+.card-delete-popover.show {
+  opacity: 1;
+}
+
+.card-delete-popover .popover-content p {
   margin: 0 0 12px 0;
   font-size: 14px;
   color: #333;
   text-align: center;
 }
 
-.delete-popover .popover-actions {
+.card-delete-popover .popover-actions {
   display: flex;
   gap: 8px;
   justify-content: center;
 }
 
-.delete-popover .popover-btn {
+.card-delete-popover .popover-btn {
   padding: 6px 12px;
-  border: none;
-  border-radius: 4px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
   font-size: 12px;
   cursor: pointer;
+  background: #fff;
+  color: rgba(0,0,0,0.88);
   transition: all 0.2s ease;
 }
 
-.delete-popover .cancel-btn {
-  background: #f5f5f5;
-  color: #666;
+.card-delete-popover .popover-btn:hover {
+  border-color: #bfbfbf;
 }
 
-.delete-popover .cancel-btn:hover {
-  background: #e0e0e0;
+.card-delete-popover .confirm-btn {
+  background: #000;
+  border-color: #000;
+  color: #fff;
 }
 
-.delete-popover .confirm-btn {
-  background: #dc3545;
-  color: white;
-}
-
-.delete-popover .confirm-btn:hover {
-  background: #c82333;
+.card-delete-popover .confirm-btn:hover {
+  background: #333;
+  border-color: #333;
 }
 
 /* Loading 动画样式 */
@@ -1155,4 +1529,133 @@ body {
   font-weight: 500;
 }
 
+/* 关于我们弹窗样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* 关于我们弹窗的modal-header样式 */
+.modal-overlay .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px 0 16px;
+  border-bottom: 1px solid #e6e6e6;
+  margin-bottom: 16px;
+}
+
+.modal-overlay .modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.modal-overlay .modal-close {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay .modal-close:hover {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+/* 关于我们弹窗的modal-body样式 */
+.modal-overlay .modal-body {
+  padding: 0 20px 20px;
+  max-height: calc(80vh - 80px);
+  overflow-y: auto;
+}
+
+.about-section {
+  margin-bottom: 24px;
+}
+
+.about-section:last-child {
+  margin-bottom: 0;
+}
+
+.about-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #242424;
+  display: flex;
+  align-items: center;
+}
+
+.about-section p {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #666;
+}
+
+.about-section ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.about-section li {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #666;
+  margin-bottom: 4px;
+}
+
 /* 响应式设计、loading、滚动条和meta信息栏样式已移至 article-drawer.css */
+
+/* 打印样式 - 只显示升级提示 */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #print-area, #print-area * {
+    visibility: visible;
+  }
+  #print-area {
+    position: fixed;
+    inset: 0;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+/* 列表结束提示样式 */
+.list-end-msg {
+  display: none;
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+  padding: 12px 0 24px;
+}

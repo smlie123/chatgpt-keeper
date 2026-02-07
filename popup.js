@@ -1,82 +1,53 @@
 // popup.js - 处理popup页面的交互逻辑
 
 document.addEventListener('DOMContentLoaded', function() {
-  // 初始化popup页面
   initializePopup();
-  
-  // 绑定事件监听器
   bindEventListeners();
 });
 
 function initializePopup() {
-  // 更新订阅信息显示
-  updateSubscriptionInfo();
-  
-  // 检查插件状态
-  checkExtensionStatus();
-}
-
-function updateSubscriptionInfo() {
-  // 模拟订阅数据
-  const mockSubscriptionData = {
-    planName: 'Pro会员',
-    status: 'active',
-    expiryDate: '2024-12-31',
-    remainingDays: 365,
-    usageCount: 1234,
-    usageLimit: '无限制'
-  };
-  
-  // 更新界面显示
-  const planNameEl = document.querySelector('.plan-name');
-  const planStatusEl = document.querySelector('.plan-status');
-  const expiryDateEl = document.querySelector('.detail-item:nth-child(1) .value');
-  const remainingDaysEl = document.querySelector('.detail-item:nth-child(2) .value');
-  const usageCountEl = document.querySelector('.detail-item:nth-child(3) .value');
-  
-  if (planNameEl) planNameEl.textContent = mockSubscriptionData.planName;
-  if (planStatusEl) {
-    planStatusEl.textContent = mockSubscriptionData.status === 'active' ? '已激活' : '未激活';
-    planStatusEl.className = `plan-status ${mockSubscriptionData.status}`;
+  const loadingEl = document.getElementById('loading');
+  const contentEl = document.getElementById('content');
+  if (loadingEl) loadingEl.style.display = 'none';
+  if (contentEl) {
+    contentEl.style.display = 'block';
+    contentEl.innerHTML = `
+      <div class="popup-body">
+            <div class="popup-title">Momory</div>
+            <div class="popup-subtitle" style="font-size: 12px; color: #666; margin-bottom: 12px;">AI conversation manager for ChatGPT, Claude, and Gemini</div>
+            <div class="popup-description">
+          <div class="popup-label">How to use</div>
+          <ul class="popup-steps">
+            <li>This extension only works on ChatGPT pages and shows an icon on the side.</li>
+            <li>Use the Momory icon on the left side of the page to open the outline.</li>
+            <li>Drag the icon up or down to place it where you like.</li>
+          </ul>
+        </div>
+      </div>
+    `;
   }
-  if (expiryDateEl) expiryDateEl.textContent = mockSubscriptionData.expiryDate;
-  if (remainingDaysEl) remainingDaysEl.textContent = `${mockSubscriptionData.remainingDays}天`;
-  if (usageCountEl) usageCountEl.textContent = `${mockSubscriptionData.usageCount.toLocaleString()} / ${mockSubscriptionData.usageLimit}`;
 }
 
-function checkExtensionStatus() {
-  // 检查content script是否正常运行
-  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-    const currentTab = tabs[0];
-    if (currentTab && (currentTab.url.includes('chatgpt.com') || currentTab.url.includes('chat.openai.com'))) {
-      // 发送消息到content script检查状态
-      chrome.tabs.sendMessage(currentTab.id, {action: 'checkStatus'}, function(response) {
-        if (chrome.runtime.lastError) {
-          console.log('Content script not loaded yet');
-        } else {
-          console.log('Extension is working properly');
-        }
-      });
-    }
-  });
-}
 
 function bindEventListeners() {
   // View More按钮点击事件
   const popupViewMoreBtn = document.getElementById('popupViewMoreBtn');
   if (popupViewMoreBtn) {
     popupViewMoreBtn.addEventListener('click', function() {
-      chrome.runtime.sendMessage({action: 'openOptionsPage'});
-      window.close(); // 关闭popup窗口
+      chrome.runtime.sendMessage({action: 'openOptionsPage'}, () => {
+        // Ignored response, just ensure message is sent
+        window.close();
+      });
     });
   }
+  // 右侧对齐的 link btn 仅按钮可点，无需整块可点
   
   // 设置按钮点击事件
   const settingsBtn = document.getElementById('openSettings');
   if (settingsBtn) {
     settingsBtn.addEventListener('click', function() {
       // 打开设置页面或显示设置选项
-      showNotification('设置功能开发中...');
+      showNotification('Settings feature under development...');
     });
   }
   
@@ -86,7 +57,7 @@ function bindEventListeners() {
     feedbackBtn.addEventListener('click', function() {
       // 打开反馈页面
       chrome.tabs.create({
-        url: 'mailto:support@example.com?subject=ChatGPT对话目录插件反馈'
+        url: 'mailto:support@example.com?subject=ChatGPT Conversation Directory Plugin Feedback'
       });
     });
   }
@@ -132,11 +103,3 @@ function showNotification(message) {
     }
   }, 2000);
 }
-
-// 监听来自content script的消息
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-  if (request.action === 'updatePopup') {
-    // 更新popup界面数据
-    updateSubscriptionInfo();
-  }
-});

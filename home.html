@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Momory - Home</title>
+  <link rel="stylesheet" href="home.css">
+  <link rel="stylesheet" href="article-drawer.css">
+  <link rel="stylesheet" href="katex.min.css">
+  <link rel="stylesheet" href="iconfont/iconfont.css">
+  
+  <link rel="stylesheet" href="github-markdown-light.min.css">
+    <link rel="stylesheet" href="markdown-content.css">
+  <link rel="stylesheet" href="md-preview.css">
+</head>
+<body>
+  <!-- Upgrade prompt div for printing -->
+  <div id="print-area" style="display: none; text-align: center; padding: 50px; font-size: 24px; font-weight: bold; background: #fff3cd;">
+    <!-- Upgrade to Pro to export PDF -->
+  </div>
+  
+  <div class="app-container">
+    <!-- 左侧导航栏 -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <img src="/icons/icon32.png" alt="Momory" class="logo-icon" />
+          <div class="logo-text-container">
+            <h1 class="logo-text">Momory</h1>
+            <p class="logo-subtitle">AI conversation manager</p>
+          </div>
+        </div>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <h3 class="nav-section-title">
+            <span>Categories</span>
+            <button class="category-settings-btn" id="categorySettingsBtn">
+              <i class="iconfont icon-setting" style="font-size: 16px;"></i>
+            </button>
+          </h3>
+          <ul class="nav-list"></ul>
+        </div>
+      </nav>
+      
+      <!-- 用户区域 -->
+      <div class="sidebar-footer">
+        <div class="user-profile" id="userProfile">
+          <div class="user-avatar">
+            <i class="iconfont icon-menu" style="font-size: 16px;"></i>
+          </div>
+          <div class="user-info">
+            <div class="user-name">Menu</div>
+          </div>
+          <svg class="dropdown-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6,9 12,15 18,9"></polyline>
+          </svg>
+        </div>
+        
+        <!-- 用户菜单弹窗 -->
+        <div class="user-menu" id="userMenu">
+          
+          <div class="user-menu-item" id="exportDataBtn">
+            <i class="iconfont icon-export" style="font-size: 16px;"></i>
+            <span>Export Data</span>
+          </div>
+         <div class="user-menu-item" id="importDataBtn">
+           <i class="iconfont icon-Import" style="font-size: 16px;"></i>
+           <span>Import Data</span>
+         </div>
+         <div class="user-menu-item" id="aboutUsBtn">
+           <i class="iconfont icon-question-circle" style="font-size: 16px;"></i>
+           <span>About Us</span>
+         </div>
+         <div class="user-menu-item" id="contactUsBtn">
+           <i class="iconfont icon-mail" style="font-size: 16px;"></i>
+           <span>Contact Us</span>
+         </div>
+
+         <div class="user-menu-item" id="settingsBtn">
+           <i class="iconfont icon-setting" style="font-size: 16px;"></i>
+           <span>Setting</span>
+         </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 主内容区域 -->
+    <div class="main-content">
+      <!-- 顶部搜索栏 -->
+      <div class="top-bar">
+        <div class="search-section">
+          <div class="search-box">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.35-4.35"></path>
+            </svg>
+            <input type="text" class="search-input" placeholder="Search by keyword......">
+          </div>
+        </div>
+        
+        <div class="controls-section">
+          <button class="layout-toggle-btn" id="layoutToggleBtn" title="Switch Layout">
+            <i class="iconfont icon-View_waterfall" style="font-size: 16px;"></i>
+          </button>
+          
+          <div class="sort-dropdown">
+            <button class="sort-btn" id="sortBtn">
+              <svg class="sort-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 6h18M7 12h10m-7 6h4"></path>
+              </svg>
+              <span class="sort-text">Sort by Date</span>
+              <svg class="dropdown-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6,9 12,15 18,9"></polyline>
+              </svg>
+            </button>
+            <div class="sort-menu" id="sortMenu">
+              <div class="sort-option active" data-sort="date">Sort by Date</div>
+              <div class="sort-option" data-sort="random">Random Sort</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 内容区域 -->
+      <div class="content-area">
+        <div id="localDataWarning" class="local-data-warning" style="display: none;">
+          <div class="local-data-warning-text">
+            All Momory data is stored locally in this browser. If you uninstall the extension, your saved data will be lost. Please back up regularly using Menu → Export Data.
+          </div>
+          <button type="button" class="local-data-warning-close" aria-label="Dismiss">
+            ×
+          </button>
+        </div>
+        <div class="masonry-container" id="masonryContainer">
+          <!-- 卡片内容将通过JavaScript动态生成 -->
+        </div>
+
+        <!-- 列表结束提示 -->
+        <div id="listEndMessage" class="list-end-msg" style="display: none;">no more content～</div>
+        
+        <!-- 空状态显示 -->
+        <div class="empty-state" id="emptyState" style="display: none;">
+          <i class="iconfont icon-empty empty-icon"></i>
+          <h3 class="empty-title" id="emptyTitle">Nothing here yet.</h3>
+          <p class="empty-description" id="emptyDescription">Add your first conversation.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 分类管理弹窗 -->
+  <div id="categoryModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Category Management</h2>
+        <button class="modal-close" id="modalClose">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="add-category-section">
+          <input type="text" id="categoryNameInput" placeholder="Enter category name" class="category-input">
+          <button id="addCategoryBtn" class="add-category-btn">Add</button>
+        </div>
+        
+        <div class="category-list" id="categoryList">
+          <div class="category-item default-category">
+            <span class="category-name">Uncategorized</span>
+            <span class="category-note">Default category (not movable)</span>
+          </div>
+          <div class="category-item" data-id="1">
+            <span class="category-name">分类1</span>
+            <div class="category-actions">
+              <button class="edit-btn" title="Edit">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+              <button class="delete-btn" title="Delete">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3,6 5,6 21,6"></polyline>
+                  <path d="m19,6v14a2,2 0 0,1-2,2H7a2,2 0 0,1-2-2V6m3,0V4a2,2 0 0,1,2-2h4a2,2 0 0,1,2,2v2"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 文章详情抽屉弹窗 -->
+  <div id="articleDrawer" class="article-drawer">
+    <div class="drawer-overlay" id="drawerOverlay"></div>
+    <div class="drawer-content">
+      <div class="drawer-header">
+        <h2 class="drawer-title" id="drawerTitle">Details</h2>
+        <button class="drawer-close" id="drawerClose">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="drawer-body">
+        <!-- 目录容器 -->
+        <div class="table-of-contents" id="tableOfContents" style="display: none;">
+          <div class="toc-header">Outline</div>
+          <div class="toc-list" id="tocList">
+            <!-- 目录项将在这里动态生成 -->
+          </div>
+        </div>
+        
+        <div class="drawer-main">
+          <div class="article-title">
+             <div id="drawerTitleText"></div>
+          </div>
+          
+          <div class="article-content" id="drawerContent">
+            <!-- 文章内容将在这里显示 -->
+          </div>
+        </div>
+        
+        <!-- Meta信息栏 -->
+        <div class="article-meta-bar" id="articleMetaBar">
+          <div class="meta-info">
+            <span class="meta-time" id="metaTime">Saved: 2024-01-01 12:00:00</span>
+          </div>
+          <div class="meta-actions">
+            <button class="export-btn" id="exportNativePdfBtn" title="Export PDF">
+              <i class="iconfont icon-file-pdf" style="font-size: 16px;"></i>
+              Export PDF
+            </button>
+            <button class="export-btn" id="exportMdBtn" title="Export Markdown">
+              <i class="iconfont icon-file-markdown" style="font-size: 16px;"></i>
+              Export Markdown
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Markdown 源码预览弹窗（z-index 高于抽屉） -->
+  <div id="mdPreviewOverlay" class="md-preview-overlay" style="display:none;"></div>
+  <div id="mdPreviewModal" class="md-preview-modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="mdPreviewTitle">
+    <div class="md-preview-header">
+      <h2 id="mdPreviewTitle">Markdown Preview</h2>
+      <button class="md-preview-close" id="mdPreviewCloseBtn" title="关闭">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+    <div class="md-preview-body">
+      <textarea id="mdPreviewTextarea" class="md-preview-textarea" readonly spellcheck="false"></textarea>
+    </div>
+    <div class="md-preview-footer">
+      <button id="mdPreviewCancelBtn" class="btn-cancel" type="button">Cancel</button>
+      <button id="mdPreviewConfirmBtn" class="btn-confirm" type="button">Export Markdown</button>
+    </div>
+  </div>
+
+  <!-- 分类选择弹窗 -->
+  <div id="categorySelectModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Select Category</h2>
+        <button class="modal-close" id="categorySelectClose">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="category-select-list" id="categorySelectList">
+          <!-- 分类选项将在这里动态生成 -->
+        </div>
+        
+        <div class="modal-actions">
+          <button id="categorySelectCancel" class="btn-secondary">Cancel</button>
+          <button id="categorySelectConfirm" class="btn-primary">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 导出数据确认弹窗 -->
+  <div id="exportConfirmModal" class="modal confirm-modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Export Your Data</h2>
+        <button class="modal-close" id="exportConfirmClose" type="button">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="export-desc">
+          <p>You are about to export your Momory data.</p>
+          <p class="section-note">Includes: Categories • Saved items/notes • Sorting preferences • Custom settings</p>
+          <p class="section-note">Format: JSON. Stored locally, never uploaded.</p>
+        </div>
+        <div class="export-step2" id="exportStep2" style="display: none;">
+          <p>Please confirm again to continue.</p>
+        </div>
+        <div class="permission-block">
+          <div id="exportPermissionMsg" style="display: none; color: #b00020;"></div>
+          <button id="exportUpgradeBtn" class="btn-upgrade" type="button" style="display: none;">👑 Upgrade to Pro</button>
+        </div>
+        <div class="modal-actions">
+          <button id="exportHistoryBtn" class="link-button" type="button">Export History</button>
+          <button id="exportConfirmCancel" class="btn-secondary" type="button">Cancel</button>
+          <button id="exportConfirmNext" class="btn-primary" type="button">Continue</button>
+          <button id="exportConfirmFinal" class="btn-primary" type="button" disabled style="display: none;">Export</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div id="exportHistoryModal" class="modal confirm-modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Export History</h2>
+        <button class="modal-close" id="exportHistoryClose" type="button">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="exportHistoryEmpty" class="export-history-empty">No export records yet.</div>
+        <div id="exportHistoryList" class="export-history-list"></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 导入数据确认弹窗（警告） -->
+  <div id="importConfirmModal" class="modal confirm-modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Restore Data from Backup</h2>
+        <button class="modal-close" id="importConfirmClose" type="button">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="import-desc">
+          <div class="warning-text">⚠️ Importing will overwrite current data.</div>
+          <p class="section-note">Overwritten: Categories • Saved items • Sorting preferences • Custom settings</p>
+          <p class="section-note">Recommendation: Export current data before restoring.</p>
+          <p class="section-note">Privacy: Processed locally; not uploaded or stored.</p>
+        </div>
+        <div class="import-step2" id="importStep2" style="display: none;">
+          <p>Please confirm again to continue.</p>
+        </div>
+        <div class="permission-block">
+          <div id="importPermissionMsg" style="display: none; color: #b00020;"></div>
+          <button id="importUpgradeBtn" class="btn-upgrade" type="button" style="display: none;">👑 Upgrade to Pro</button>
+        </div>
+        <div class="modal-actions">
+          <button id="importConfirmCancel" class="btn-secondary" type="button">Cancel</button>
+          <button id="importConfirmNext" class="btn-primary" type="button">Continue</button>
+          <button id="importConfirmFinal" class="btn-danger" type="button" disabled style="display: none;">Restore</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 联系我们弹窗 -->
+  <div id="contactUsModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Contact Us</h3>
+        <button class="modal-close" id="contactUsClose">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="about-section">
+          <h4><i class="iconfont icon-mail" style="margin-right: 8px;"></i>Contact Information</h4>
+          <p>If you have any suggestions or ideas, please contact us at wangjiasansan@gmail.com</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 设置图片保存目录弹窗 -->
+  <div id="settingsModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Setting</h2>
+        <button class="modal-close" id="settingsModalClose">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+          <div class="about-section">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="white-space: nowrap;"><i class="iconfont icon-folder" style="margin-right: 6px;"></i>Image save folder</span>
+            <p id="settingsStatus" style="margin: 0;">Current status: Unknown</p>
+            <button id="chooseDirBtn" class="btn-primary" type="button">Choose Folder</button>
+          </div>
+          <p style="margin-top: 10px; font-size: 12px; color: #6b7280;">
+            This folder is used to save images locally. Momory only reads files from this folder to display them in your notes; images are stored on your device and never uploaded.
+          </p>
+          <p style="margin-top: 4px; font-size: 12px; color: #6b7280;">
+            Note: Directory access is per-origin; you may need to authorize again on the ChatGPT page.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="markdown-it.min.js"></script>
+    <script src="katex.min.js"></script>
+    <script src="markdown-it-katex.min.js"></script>
+    <script src="markdown-it-task-lists.min.js"></script>
+  <script src="markdown-it-emoji.min.js"></script>
+  
+  <!-- 关于我们弹窗 -->
+  <div id="aboutUsModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>About Momory</h3>
+        <button class="modal-close" id="aboutUsClose">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="about-section">
+          <h4><i class="iconfont icon-comment" style="margin-right: 8px;"></i>Full Description</h4>
+          <p>Momory is a Chrome extension that upgrades your AI chat experience with professional conversation management. It lets you save, organize, and export chats effortlessly — turning your daily conversations into a searchable, structured knowledge base.</p>
+        </div>
+        <div class="about-section">
+          <h4><i class="iconfont icon-star" style="margin-right: 8px;"></i>Key Features</h4>
+          <ul>
+            <li>Auto-generate outlines for long chats</li>
+            <li>One-click save and folder management</li>
+            <li>Export to PDF or Markdown</li>
+            <li>Full backup and restore support</li>
+            <li>Merge multiple chats into one document </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading 动画 -->
+  <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loading-spinner">
+      <div class="spinner"></div>
+      <div class="loading-text">Exporting...</div>
+    </div>
+  </div>
+
+  <script src="indexeddb.js"></script>
+  <script src="storage-api.js"></script>
+  <script src="config.js"></script>
+  <!-- 引入文件管理模块以便渲染本地图片 -->
+  <script src="fileManager.js"></script>
+  <script src="home.js"></script>
+</body>
+</html>

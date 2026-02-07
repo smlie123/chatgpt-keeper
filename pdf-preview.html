@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Preview</title>
+    <link rel="stylesheet" href="github-markdown-light.min.css">
+    <link rel="stylesheet" href="katex.min.css">
+    <link rel="stylesheet" href="article-drawer.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #24292e;
+            background-color: #fff;
+            margin: 0;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+
+        
+        .toc {
+            background-color: #f6f8fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 30px;
+            /* 目录文本自动换行，避免超出页面 */
+            white-space: normal;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+        }
+        
+        .toc h2 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #24292e;
+        }
+        
+        .toc ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .toc li {
+            margin: 8px 0;
+            padding-left: 20px;
+            position: relative;
+            white-space: normal;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+        }
+        
+        .toc li::before {
+            content: counter(toc-counter);
+            counter-increment: toc-counter;
+            position: absolute;
+            left: 0;
+            top: 0;
+            font-weight: 600;
+            color: #0366d6;
+        }
+        
+        .toc ul {
+            counter-reset: toc-counter;
+        }
+        
+        .toc a {
+            color: #0366d6;
+            text-decoration: none;
+            font-weight: 500;
+            white-space: normal;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+        }
+        
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        
+        .content {
+            margin-top: 20px;
+        }
+        .my-question{
+            text-align: right;
+            margin-bottom: 20px;
+        }
+        .my-question p {
+            width: 70%;
+            padding: 10px 14px;
+            border-radius: 10px;
+            display: inline-block;
+            background: #f5f5f5;
+            color: #333;
+            text-align: left;
+            margin: 0;
+            font-weight: normal;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* 预览页标题气泡最大宽度与对话气泡保持一致 */
+        #drawerTitleText {
+            max-width: 70%;
+        }
+        
+        .markdown-body hr {
+            height: 1px;
+        }
+        
+        .markdown-body h1,
+        .markdown-body h2,
+        .markdown-body h3,
+        .markdown-body h4,
+        .markdown-body h5,
+        .markdown-body h6 {
+            border-bottom: none;
+        }
+        
+        .markdown-body {
+            box-sizing: border-box;
+            min-width: 200px;
+            max-width: 100%;
+            margin: 0;
+            /* 代码块在导出时允许换行，避免文本被截断 */
+            --code-wrap: pre-wrap;
+        }
+
+        /* 让代码块在 PDF 导出时可以自动换行 */
+        .markdown-body pre,
+        .markdown-body code,
+        .markdown-body pre code {
+            white-space: pre-wrap; /* 保留缩进与换行，同时允许自动换行 */
+            word-break: break-word; /* 对长单词或URL进行断词换行 */
+            overflow-wrap: anywhere; /* 对连续字符也允许换行 */
+        }
+
+        /* 代码块浅灰背景，导出时也保留颜色 */
+        .markdown-body pre {
+            background-color: #f6f8fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 12px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .markdown-body pre code {
+            background: transparent; /* 避免 code 与 pre 双重背景 */
+        }
+
+        /* 打印时确保换行规则生效 */
+        @media print {
+            .toc, .toc li, .toc a {
+                white-space: normal;
+                word-break: break-word;
+                overflow-wrap: anywhere;
+            }
+            .markdown-body pre,
+            .markdown-body code,
+            .markdown-body pre code {
+                white-space: pre-wrap;
+                word-break: break-word;
+                overflow-wrap: anywhere;
+            }
+            .markdown-body pre {
+                background-color: #f6f8fa;
+                border: 1px solid #e1e4e8;
+                border-radius: 6px;
+                padding: 12px;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .markdown-body pre code {
+                background: transparent;
+            }
+        }
+        
+        .print-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #0366d6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 1000;
+        }
+        
+        .print-btn:hover {
+            background-color: #0256cc;
+        }
+        
+        @media print {
+            .print-btn {
+                display: none !important;
+            }
+            
+            body {
+                padding: 0;
+                margin: 0;
+            }
+            
+
+            
+            .toc {
+                page-break-after: always;
+            }
+        }
+        
+        @page {
+            margin: 2cm 1.5cm 2.5cm 1.5cm;
+            size: A4;
+            @bottom-center {
+                content: "Exported by Momory (Chrome Extension)";
+                font-size: 10px;
+                color: #666;
+            }
+            @bottom-right {
+                content: "Page " counter(page);
+                font-size: 10px;
+                color: #666;
+            }
+        }
+        /* 默认情况下隐藏首页页码（通常为目录页）；若无目录将通过脚本注入样式覆盖此规则 */
+        @page :first {
+            @bottom-right {
+                content: none;
+            }
+        }
+        /* 覆盖抽屉样式文件中的打印隐藏规则，确保预览页内容不会被隐藏 */
+        @media print {
+            /* 覆盖抽屉样式文件中的打印隐藏规则，但不强制显示导出按钮 */
+            body > *:not(.article-drawer):not(.print-btn) {
+                display: block !important;
+            }
+        }
+
+        /* 确保单条对话时顶部标题灰色背景在打印中保留颜色 */
+        #drawerTitleText {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    </style>
+</head>
+<body>
+    <button class="print-btn">Export PDF</button>
+    
+
+    
+    <div id="toc-container" class="toc" style="display: none;">
+        <h2>Contents</h2>
+        <ul id="toc-list"></ul>
+    </div>
+    
+    <div class="content">
+        <div class="article-title" style="display: block;">
+            <div id="drawerTitleText"></div>
+        </div>
+        <div id="markdown-content" class="markdown-body"></div>
+    </div>
+    
+    <script src="markdown-it.min.js"></script>
+    <script src="markdown-it-emoji.min.js"></script>
+    <script src="markdown-it-task-lists.min.js"></script>
+    <script src="markdown-it-katex.min.js"></script>
+    <script src="katex.min.js"></script>
+    <!-- 引入文件管理模块以便水合本地图片 -->
+    <script src="fileManager.js"></script>
+    <script src="pdf-preview.js"></script>
+</body>
+</html>

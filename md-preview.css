@@ -1,0 +1,101 @@
+/* Markdown 源码预览弹窗（高于抽屉） */
+.md-preview-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 3000; /* 高于抽屉 overlay(2000/2001) */
+}
+
+.md-preview-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 860px;
+  max-width: 92vw;
+  max-height: 80vh;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  display: flex;
+  flex-direction: column;
+  z-index: 3001; /* 高于抽屉内容(2000+) */
+  /* 禁止选择、复制 */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.md-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+}
+.md-preview-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.md-preview-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+}
+.md-preview-close:hover { background: #f3f4f6; }
+
+.md-preview-body {
+  padding: 12px 16px;
+  flex: 1;
+  display: flex;
+}
+.md-preview-textarea {
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+  resize: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #111827;
+  background: #fafafa;
+  /* 阻止选择与光标显示 */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  caret-color: transparent;
+}
+
+.md-preview-footer {
+  padding: 12px 16px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.md-preview-footer .btn-cancel,
+.md-preview-footer .btn-confirm {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  cursor: pointer;
+}
+.md-preview-footer .btn-cancel:hover { background: #f3f4f6; }
+.md-preview-footer .btn-confirm {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+}
+.md-preview-footer .btn-confirm:hover { background: #374151; }
