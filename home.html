@@ -27,7 +27,7 @@
           <img src="/icons/icon32.png" alt="Momory" class="logo-icon" />
           <div class="logo-text-container">
             <h1 class="logo-text">Momory</h1>
-            <p class="logo-subtitle">AI conversation manager</p>
+            <p class="logo-subtitle" style="margin-top: -6px;">AI conversation manager</p>
           </div>
         </div>
       </div>
@@ -76,11 +76,6 @@
          <div class="user-menu-item" id="contactUsBtn">
            <i class="iconfont icon-mail" style="font-size: 16px;"></i>
            <span>Contact Us</span>
-         </div>
-
-         <div class="user-menu-item" id="settingsBtn">
-           <i class="iconfont icon-setting" style="font-size: 16px;"></i>
-           <span>Setting</span>
          </div>
         </div>
       </div>
@@ -144,7 +139,23 @@
         <div class="empty-state" id="emptyState" style="display: none;">
           <i class="iconfont icon-empty empty-icon"></i>
           <h3 class="empty-title" id="emptyTitle">Nothing here yet.</h3>
-          <p class="empty-description" id="emptyDescription">Add your first conversation.</p>
+          
+          <div class="empty-instructions">
+            <p class="instruction-text">To get started:</p>
+            <ol class="instruction-list">
+              <li>Open <a href="https://chatgpt.com/" target="_blank" class="external-link">ChatGPT</a> or <a href="https://gemini.google.com/" target="_blank" class="external-link">Gemini</a>.</li>
+              <li>Look for the <strong>Momory icon</strong> on the right side of the screen.</li>
+              <li>Click the icon to open the sidebar.</li>
+            </ol>
+            <p class="instruction-note">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="info-icon">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+              <span>If you already have these pages open, please <strong>refresh the page</strong> to see the icon.</span>
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -233,6 +244,13 @@
         <div class="article-meta-bar" id="articleMetaBar">
           <div class="meta-info">
             <span class="meta-time" id="metaTime">Saved: 2024-01-01 12:00:00</span>
+            <a id="metaLink" class="meta-link" target="_blank" title="Open source URL">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </a>
           </div>
           <div class="meta-actions">
             <button class="export-btn" id="exportNativePdfBtn" title="Export PDF">
@@ -297,10 +315,10 @@
   </div>
 
   <!-- 导出数据确认弹窗 -->
-  <div id="exportConfirmModal" class="modal confirm-modal" style="display: none;">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>Export Your Data</h2>
+  <div id="exportConfirmModal" class="modal-overlay" style="display: none;">
+    <div class="modern-modal-content">
+      <div class="modal-header" style="border-bottom: none; padding-bottom: 0;">
+        <h2 style="font-size: 18px; font-weight: 700;">Export Data</h2>
         <button class="modal-close" id="exportConfirmClose" type="button">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -308,33 +326,40 @@
           </svg>
         </button>
       </div>
-      <div class="modal-body">
-        <div class="export-desc">
-          <p>You are about to export your Momory data.</p>
-          <p class="section-note">Includes: Categories • Saved items/notes • Sorting preferences • Custom settings</p>
-          <p class="section-note">Format: JSON. Stored locally, never uploaded.</p>
+      <div class="modern-modal-body">
+        <div class="info-card">
+          <div class="info-card-title">What's included</div>
+          <div class="info-card-content">
+            Categories • Saved items • Preferences • Settings
+          </div>
         </div>
-        <div class="export-step2" id="exportStep2" style="display: none;">
-          <p>Please confirm again to continue.</p>
+        <p style="font-size: 14px; color: #6b7280; margin-bottom: 20px;">
+          Your data will be exported as a JSON file. This file is stored locally on your device and is never uploaded to any server.
+        </p>
+        
+        <div class="export-step2" id="exportStep2" style="display: none; margin-bottom: 16px;">
+          <p style="font-weight: 500; color: #111;">Please confirm again to proceed.</p>
         </div>
+        
         <div class="permission-block">
-          <div id="exportPermissionMsg" style="display: none; color: #b00020;"></div>
+          <div id="exportPermissionMsg" style="display: none; color: #b00020; font-size: 13px; margin-bottom: 10px;"></div>
           <button id="exportUpgradeBtn" class="btn-upgrade" type="button" style="display: none;">👑 Upgrade to Pro</button>
         </div>
-        <div class="modal-actions">
-          <button id="exportHistoryBtn" class="link-button" type="button">Export History</button>
-          <button id="exportConfirmCancel" class="btn-secondary" type="button">Cancel</button>
-          <button id="exportConfirmNext" class="btn-primary" type="button">Continue</button>
-          <button id="exportConfirmFinal" class="btn-primary" type="button" disabled style="display: none;">Export</button>
+        
+        <div class="modern-actions">
+          <button id="exportHistoryBtn" class="btn-text" type="button" style="margin-right: auto;">History</button>
+          <button id="exportConfirmCancel" class="btn-text" type="button">Cancel</button>
+          <button id="exportConfirmNext" class="btn-primary-modern" type="button">Continue</button>
+          <button id="exportConfirmFinal" class="btn-primary-modern" type="button" disabled style="display: none;">Export Now</button>
         </div>
       </div>
     </div>
   </div>
   
-  <div id="exportHistoryModal" class="modal confirm-modal" style="display: none;">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>Export History</h2>
+  <div id="exportHistoryModal" class="modal-overlay" style="display: none;">
+    <div class="modern-modal-content">
+      <div class="modal-header" style="border-bottom: 1px solid #f3f4f6; padding-bottom: 16px;">
+        <h2 style="font-size: 18px; font-weight: 700;">Export History</h2>
         <button class="modal-close" id="exportHistoryClose" type="button">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -342,18 +367,21 @@
           </svg>
         </button>
       </div>
-      <div class="modal-body">
-        <div id="exportHistoryEmpty" class="export-history-empty">No export records yet.</div>
-        <div id="exportHistoryList" class="export-history-list"></div>
+      <div class="modern-modal-body">
+        <div id="exportHistoryEmpty" class="export-history-empty" style="text-align: center; padding: 32px 0; color: #9ca3af;">
+          <i class="iconfont icon-empty" style="font-size: 48px; margin-bottom: 8px; display: block;"></i>
+          No export records yet.
+        </div>
+        <div id="exportHistoryList" class="export-history-list" style="max-height: 300px; overflow-y: auto;"></div>
       </div>
     </div>
   </div>
   
   <!-- 导入数据确认弹窗（警告） -->
-  <div id="importConfirmModal" class="modal confirm-modal" style="display: none;">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>Restore Data from Backup</h2>
+  <div id="importConfirmModal" class="modal-overlay" style="display: none;">
+    <div class="modern-modal-content">
+      <div class="modal-header" style="border-bottom: none; padding-bottom: 0;">
+        <h2 style="font-size: 18px; font-weight: 700;">Restore Data</h2>
         <button class="modal-close" id="importConfirmClose" type="button">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -361,24 +389,40 @@
           </svg>
         </button>
       </div>
-      <div class="modal-body">
-        <div class="import-desc">
-          <div class="warning-text">⚠️ Importing will overwrite current data.</div>
-          <p class="section-note">Overwritten: Categories • Saved items • Sorting preferences • Custom settings</p>
-          <p class="section-note">Recommendation: Export current data before restoring.</p>
-          <p class="section-note">Privacy: Processed locally; not uploaded or stored.</p>
+      <div class="modern-modal-body">
+        <div class="warning-card">
+          <div class="warning-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+          </div>
+          <div class="warning-content">
+            <h4>Warning: Data Overwrite</h4>
+            <p>Importing will completely replace your current categories, saved items, and settings. This action cannot be undone.</p>
+          </div>
         </div>
-        <div class="import-step2" id="importStep2" style="display: none;">
-          <p>Please confirm again to continue.</p>
+        
+        <div style="background-color: #f9fafb; padding: 12px; border-radius: 8px; margin-bottom: 20px;">
+          <p style="font-size: 13px; color: #4b5563; margin: 0;">
+            <strong>Tip:</strong> We recommend exporting your current data as a backup before restoring.
+          </p>
         </div>
+
+        <div class="import-step2" id="importStep2" style="display: none; margin-bottom: 16px;">
+          <p style="font-weight: 500; color: #111;">Please confirm again to restore.</p>
+        </div>
+        
         <div class="permission-block">
-          <div id="importPermissionMsg" style="display: none; color: #b00020;"></div>
+          <div id="importPermissionMsg" style="display: none; color: #b00020; font-size: 13px; margin-bottom: 10px;"></div>
           <button id="importUpgradeBtn" class="btn-upgrade" type="button" style="display: none;">👑 Upgrade to Pro</button>
         </div>
-        <div class="modal-actions">
-          <button id="importConfirmCancel" class="btn-secondary" type="button">Cancel</button>
-          <button id="importConfirmNext" class="btn-primary" type="button">Continue</button>
-          <button id="importConfirmFinal" class="btn-danger" type="button" disabled style="display: none;">Restore</button>
+        
+        <div class="modern-actions">
+          <button id="importConfirmCancel" class="btn-text" type="button">Cancel</button>
+          <button id="importConfirmNext" class="btn-primary-modern" type="button">Continue</button>
+          <button id="importConfirmFinal" class="btn-danger-modern" type="button" disabled style="display: none;">Restore Data</button>
         </div>
       </div>
     </div>
@@ -386,9 +430,9 @@
   
   <!-- 联系我们弹窗 -->
   <div id="contactUsModal" class="modal-overlay" style="display: none;">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Contact Us</h3>
+    <div class="modern-modal-content">
+      <div class="modal-header" style="border-bottom: none; padding-bottom: 0;">
+        <h2 style="font-size: 18px; font-weight: 700;">Contact Us</h2>
         <button class="modal-close" id="contactUsClose">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -396,40 +440,35 @@
           </svg>
         </button>
       </div>
-      <div class="modal-body">
-        <div class="about-section">
-          <h4><i class="iconfont icon-mail" style="margin-right: 8px;"></i>Contact Information</h4>
-          <p>If you have any suggestions or ideas, please contact us at wangjiasansan@gmail.com</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 设置图片保存目录弹窗 -->
-  <div id="settingsModal" class="modal" style="display: none;">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>Setting</h2>
-        <button class="modal-close" id="settingsModalClose">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      </div>
-      <div class="modal-body">
-          <div class="about-section">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <span style="white-space: nowrap;"><i class="iconfont icon-folder" style="margin-right: 6px;"></i>Image save folder</span>
-            <p id="settingsStatus" style="margin: 0;">Current status: Unknown</p>
-            <button id="chooseDirBtn" class="btn-primary" type="button">Choose Folder</button>
-          </div>
-          <p style="margin-top: 10px; font-size: 12px; color: #6b7280;">
-            This folder is used to save images locally. Momory only reads files from this folder to display them in your notes; images are stored on your device and never uploaded.
-          </p>
-          <p style="margin-top: 4px; font-size: 12px; color: #6b7280;">
-            Note: Directory access is per-origin; you may need to authorize again on the ChatGPT page.
-          </p>
+      <div class="modern-modal-body">
+        <p style="color: #6b7280; font-size: 14px; margin-bottom: 24px;">
+          We'd love to hear from you! Reach out for support, feedback, or just to say hi.
+        </p>
+        
+        <div class="contact-methods" style="display: flex; flex-direction: column; gap: 16px;">
+          <a href="mailto:hi.jasoncraft@gmail.com" class="feature-item" style="text-decoration: none; color: inherit;">
+            <div class="feature-icon" style="background-color: #fee2e2; color: #ef4444;">
+              <i class="iconfont icon-mail"></i>
+            </div>
+            <div class="feature-content">
+              <h4 style="margin: 0 0 4px 0; font-size: 15px;">Email</h4>
+              <p style="margin: 0; font-size: 14px; color: #64748b;">hi.jasoncraft@gmail.com</p>
+            </div>
+          </a>
+          
+          <a href="https://jasoncraft.top" target="_blank" class="feature-item" style="text-decoration: none; color: inherit;">
+            <div class="feature-icon" style="background-color: #dbeafe; color: #2563eb;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+              </svg>
+            </div>
+            <div class="feature-content">
+              <h4 style="margin: 0 0 4px 0; font-size: 15px;">More Products</h4>
+              <p style="margin: 0; font-size: 14px; color: #64748b;">jasoncraft.top</p>
+            </div>
+          </a>
         </div>
       </div>
     </div>
@@ -443,30 +482,46 @@
   
   <!-- 关于我们弹窗 -->
   <div id="aboutUsModal" class="modal-overlay" style="display: none;">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>About Momory</h3>
-        <button class="modal-close" id="aboutUsClose">
+    <div class="modern-modal-content">
+      <div class="modal-hero">
+        <div class="modal-hero-icon">
+          <img src="/icons/icon128.png" alt="Momory Logo">
+        </div>
+        <h3 class="modal-hero-title">Momory</h3>
+        <p class="modal-hero-subtitle">Momory helps you manage AI conversations with automatic outlines, saving, offline reading, and organizing.</p>
+        <button class="modal-close" id="aboutUsClose" style="position: absolute; top: 16px; right: 16px;">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
       </div>
-      <div class="modal-body">
-        <div class="about-section">
-          <h4><i class="iconfont icon-comment" style="margin-right: 8px;"></i>Full Description</h4>
-          <p>Momory is a Chrome extension that upgrades your AI chat experience with professional conversation management. It lets you save, organize, and export chats effortlessly — turning your daily conversations into a searchable, structured knowledge base.</p>
+      <div class="modern-modal-body">
+        <div class="feature-list">
+          <div class="feature-item">
+            <div class="feature-icon"><i class="iconfont icon-menu"></i></div>
+            <div class="feature-content">
+              <h4>Auto Outline</h4>
+              <p>Create outlines for ChatGPT & Gemini, jump to sections.</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon"><i class="iconfont icon-appstore"></i></div>
+            <div class="feature-content">
+              <h4>Save & Organize</h4>
+              <p>Save conversations, create folders & manage.</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon"><i class="iconfont icon-export"></i></div>
+            <div class="feature-content">
+              <h4>Offline & Export</h4>
+              <p>Access offline or export to PDF/Markdown.</p>
+            </div>
+          </div>
         </div>
-        <div class="about-section">
-          <h4><i class="iconfont icon-star" style="margin-right: 8px;"></i>Key Features</h4>
-          <ul>
-            <li>Auto-generate outlines for long chats</li>
-            <li>One-click save and folder management</li>
-            <li>Export to PDF or Markdown</li>
-            <li>Full backup and restore support</li>
-            <li>Merge multiple chats into one document </li>
-          </ul>
+        <div style="text-align: center; margin-top: 24px; font-size: 12px; color: #9ca3af;">
+          Version 1.0.0 • Made with ❤️ by <a href="https://jasoncraft.top" target="_blank" style="color: inherit; text-decoration: none; border-bottom: 1px dashed #9ca3af;">Jason</a>
         </div>
       </div>
     </div>

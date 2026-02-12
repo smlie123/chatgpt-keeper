@@ -6,6 +6,62 @@ importScripts('indexeddb.js', 'storage-api.js');
 // Track the home tab ID
 let homeTabId = null;
 
+// Reusable function to open or focus the home tab
+function openOrFocusHomeTab(sendResponse) {
+  const optionsUrl = chrome.runtime.getURL('home.html');
+  
+  const createNewHomeTab = () => {
+    chrome.tabs.create({ url: optionsUrl }, (tab) => {
+      if (chrome.runtime.lastError) {
+        if (sendResponse) sendResponse({ success: false, error: chrome.runtime.lastError.message });
+      } else {
+        homeTabId = tab.id; // Save the new tab ID
+        if (sendResponse) sendResponse({ success: true });
+      }
+    });
+  };
+
+  if (homeTabId !== null) {
+    // Check if the saved tab ID still exists
+    chrome.tabs.get(homeTabId, (tab) => {
+      if (chrome.runtime.lastError || !tab) {
+        // Tab doesn't exist (user closed it), recreate it
+        homeTabId = null;
+        createNewHomeTab();
+      } else {
+        // Tab exists, activate and refresh it
+        chrome.tabs.update(homeTabId, { active: true }, () => {
+           if (chrome.runtime.lastError) {
+              // If activation fails, fallback to create
+              homeTabId = null;
+              createNewHomeTab();
+              return;
+           }
+           // Reload the tab to refresh data
+           chrome.tabs.reload(homeTabId, () => {
+             if (sendResponse) sendResponse({ success: true });
+           });
+        });
+      }
+    });
+  } else {
+    // No saved tab ID, create new one
+    createNewHomeTab();
+  }
+}
+
+// Handle extension icon click
+chrome.action.onClicked.addListener((tab) => {
+  openOrFocusHomeTab();
+});
+
+// Handle installation event
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === 'install') {
+    chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') });
+  }
+});
+
 // 监听来自content script的消息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Background收到消息:', request);
@@ -61,53 +117,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   
   if (request.action === 'openOptionsPage') {
-    const optionsUrl = chrome.runtime.getURL('home.html');
-    
-    // Function to create a new tab and save its ID
-    const createNewHomeTab = () => {
-      chrome.tabs.create({ url: optionsUrl }, (tab) => {
-        if (chrome.runtime.lastError) {
-          sendResponse({ success: false, error: chrome.runtime.lastError.message });
-        } else {
-          homeTabId = tab.id; // Save the new tab ID
-          sendResponse({ success: true });
-        }
-      });
-    };
-
-    if (homeTabId !== null) {
-      // Check if the saved tab ID still exists
-      chrome.tabs.get(homeTabId, (tab) => {
-        if (chrome.runtime.lastError || !tab) {
-          // Tab doesn't exist (user closed it), recreate it
-          homeTabId = null;
-          createNewHomeTab();
-        } else {
-          // Tab exists, activate and refresh it
-          chrome.tabs.update(homeTabId, { active: true }, () => {
-             if (chrome.runtime.lastError) {
-                // If activation fails, fallback to create
-                homeTabId = null;
-                createNewHomeTab();
-                return;
-             }
-             // Send refresh message
-             try {
-                chrome.tabs.sendMessage(homeTabId, { action: 'refreshData' }, () => {
-                  // Ignore response if message fails (e.g. content script not ready), tab is already activated
-                  sendResponse({ success: true });
-                });
-             } catch (e) {
-                sendResponse({ success: true });
-             }
-          });
-        }
-      });
-    } else {
-      // No saved tab ID, create new one
-      createNewHomeTab();
-    }
-    
+    openOrFocusHomeTab(sendResponse);
     return true;
   }
 });

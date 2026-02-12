@@ -2,7 +2,7 @@
 
 // 自定义mytag插件
 function markdownitMytag(md) {
-    const mytagRegex = /<!-- mytag:start -->(.*?)<!-- mytag:end -->/gs;
+    const mytagRegex = /<!--\s*mytag:start\s*-->([\s\S]*?)<!--\s*mytag:end\s*-->/g;
     let questionIndex = 0;
     
     md.core.ruler.before('normalize', 'mytag', function(state) {
@@ -175,7 +175,7 @@ function initPage() {
         };
         html = params.contentArray.map(entry => {
             const qHtml = `<div class="my-question"><p>${renderTitleWithImgAsString(entry.title || '')}</p></div>`;
-            const rawHtml = (entry.type === 'img')
+            const rawHtml = (entry.type === 'img' || entry.type === 'html')
                 ? mdHtml.render(entry.answer || '')
                 : mdNoImg.render(entry.answer || '');
             const aHtml = sanitizeLocalImages(rawHtml);

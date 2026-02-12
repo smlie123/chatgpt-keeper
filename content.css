@@ -543,6 +543,10 @@
   height: auto;
 }
 
+.view-more-btn i {
+  font-style: normal;
+}
+
 .view-more-btn:hover {
   color: #374151;
 }

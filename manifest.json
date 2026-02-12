@@ -6,20 +6,25 @@
   "permissions": [],
   "host_permissions": [
     "https://chatgpt.com/*",
-    "https://chat.openai.com/*"
+    "https://chat.openai.com/*",
+    "https://gemini.google.com/*",
+    "https://grok.x.ai/*",
+    "https://twitter.com/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_popup": "popup.html",
-    "default_title": "ChatGPT"
+    "default_title": "Momory"
   },
   "content_scripts": [
     {
       "matches": [
         "https://chatgpt.com/*",
-        "https://chat.openai.com/*"
+        "https://chat.openai.com/*",
+        "https://gemini.google.com/*",
+        "https://grok.x.ai/*",
+        "https://twitter.com/*"
       ],
       "js": ["indexeddb.js", "fileManager.js", "storage-api.js", "content.js"],
       "css": ["content.css"],
@@ -33,8 +38,8 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["icons/*", "iconfont/*"],
-      "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*"]
+      "resources": ["icons/*", "iconfont/*", "src/**/*.js"],
+      "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*", "https://gemini.google.com/*", "https://grok.x.ai/*", "https://twitter.com/*"]
     }
   ],
   "content_security_policy": {

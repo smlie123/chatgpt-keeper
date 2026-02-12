@@ -258,25 +258,37 @@
   function initLocalDataWarning() {
     try {
       if (typeof localStorage === 'undefined') return;
-      const key = 'localDataWarningDismissed';
-      if (localStorage.getItem(key) === '1') return;
       const banner = document.getElementById('localDataWarning');
       if (!banner) return;
-      banner.style.display = 'flex';
-      const closeBtn = banner.querySelector('.local-data-warning-close');
-      if (closeBtn) {
-        closeBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          banner.style.display = 'none';
-          try {
-            localStorage.setItem(key, '1');
-          } catch (_) {}
-        });
+      
+      // Bind close button event if not already bound
+      if (!banner.dataset.listenerBound) {
+        const closeBtn = banner.querySelector('.local-data-warning-close');
+        if (closeBtn) {
+          closeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            banner.style.display = 'none';
+            try {
+              localStorage.setItem('localDataWarningDismissed', '1');
+            } catch (_) {}
+          });
+        }
+        banner.dataset.listenerBound = 'true';
+      }
+
+      // Check visibility conditions
+      // 1. Must have saved content (articles > 0)
+      // 2. Must not be dismissed
+      const hasContent = typeof articles !== 'undefined' && articles.length > 0;
+      const isDismissed = localStorage.getItem('localDataWarningDismissed') === '1';
+
+      if (hasContent && !isDismissed) {
+        banner.style.display = 'flex';
+      } else {
+        banner.style.display = 'none';
       }
     } catch (_) {}
   }
-
-  
   // 绑定事件监听器
   function bindEventListeners() {
     // 搜索框事件
@@ -403,80 +415,7 @@
       });
     }
 
-    // 设置菜单项与弹窗交互
-    const settingsBtn = document.getElementById('settingsBtn');
-    const settingsModal = document.getElementById('settingsModal');
-    const chooseDirBtn = document.getElementById('chooseDirBtn');
-    const settingsModalClose = document.getElementById('settingsModalClose');
-    const settingsStatus = document.getElementById('settingsStatus');
-
-    async function refreshSettingsStatus() {
-      try {
-        if (!window.FileManager) {
-          settingsStatus.textContent = 'Current status: FileManager not loaded';
-          return;
-        }
-        const auth = await window.FileManager.getAuthorizationStatus();
-        const handle = await window.FileManager.getSavedDirectoryHandle();
-        const name = handle && handle.name ? handle.name : 'None';
-        const grantedText = auth.granted ? 'Authorized' : 'Not authorized';
-        settingsStatus.textContent = `Current folder: ${name} | Permission: ${grantedText}`;
-      } catch (e) {
-        settingsStatus.textContent = 'Current status: Error reading status';
-        console.warn('refreshSettingsStatus error:', e);
-      }
-    }
-
-    function openSettingsModal() {
-      if (settingsModal) {
-        settingsModal.style.display = 'block';
-        refreshSettingsStatus();
-      }
-    }
-
-    function closeSettingsModal() {
-      if (settingsModal) {
-        settingsModal.style.display = 'none';
-      }
-    }
-
-    if (settingsBtn) {
-      settingsBtn.addEventListener('click', openSettingsModal);
-    }
-    if (settingsModalClose) {
-      settingsModalClose.addEventListener('click', closeSettingsModal);
-    }
-    if (settingsModal) {
-      // 点击遮罩关闭弹窗
-      settingsModal.addEventListener('click', (e) => {
-        if (e.target === settingsModal) {
-          closeSettingsModal();
-        }
-      });
-    }
-    if (chooseDirBtn) {
-      chooseDirBtn.addEventListener('click', async () => {
-        try {
-          if (!window.FileManager) {
-            alert('FileManager not loaded');
-            return;
-          }
-          const dir = await window.FileManager.selectDirectory();
-          if (dir) {
-            alert('Folder selected: ' + (dir.name || '')); 
-            // 广播到所有页面，使内容脚本更新目录句柄
-            chrome.runtime.sendMessage({ action: 'broadcastDirectoryHandle', handle: dir }, (res) => {
-              console.log('Broadcast result:', res);
-            });
-          }
-        } catch (e) {
-          console.warn('chooseDir error:', e);
-        } finally {
-          refreshSettingsStatus();
-        }
-      });
-    }
-    
+    // 设置菜单项与弹窗交互 - 已移除
     // 抽屉弹窗事件
     const drawerClose = document.getElementById('drawerClose');
     const drawerOverlay = document.getElementById('drawerOverlay');
@@ -1074,7 +1013,7 @@
           };
           const blocks = article.content.map(entry => {
             const qHtml = `<div class="my-question"><p>${escapeHtml(entry.title || '')}</p></div>`;
-            const rawHtml = (entry.type === 'img')
+            const rawHtml = (entry.type === 'img' || entry.type === 'html')
               ? mdHtml.render(entry.answer || '')
               : mdNoImg.render(entry.answer || '');
             const aHtml = sanitizeLocalImages(rawHtml);
@@ -1159,6 +1098,17 @@
       metaTime.textContent = `saved at：${new Date(article.create_at).toLocaleString('zh-CN')}`;
     }
     
+    // 设置meta信息栏的来源链接
+    const metaLink = document.getElementById('metaLink');
+    if (metaLink) {
+      if (article.url) {
+        metaLink.style.display = 'flex';
+        metaLink.href = article.url;
+      } else {
+        metaLink.style.display = 'none';
+      }
+    }
+    
     // 绑定导出按钮事件
     const exportNativePdfBtn = document.getElementById('exportNativePdfBtn');
     const exportMdBtn = document.getElementById('exportMdBtn');
@@ -1183,10 +1133,10 @@
       if (!container) return;
       if (!window.FileManager) return;
       // 若本页面未保存目录句柄或权限未授权，提示用户链接文件夹
-      const status = await window.FileManager.getAuthorizationStatus();
-      if (!status || !status.hasHandle || !status.granted) {
-        ensureDirectoryForImages(container);
-      }
+      // const status = await window.FileManager.getAuthorizationStatus();
+      // if (!status || !status.hasHandle || !status.granted) {
+      //   ensureDirectoryForImages(container);
+      // }
       const imgs = Array.from(container.querySelectorAll('img'));
       if (!imgs.length) return;
       const meta = Array.isArray(article.imagesMeta) ? article.imagesMeta : [];
@@ -1218,58 +1168,7 @@
     }
   }
 
-  // 在详情抽屉顶部插入授权提示，允许用户手动链接保存目录
-  function ensureDirectoryForImages(container) {
-    try {
-      const existing = container.querySelector('#localImageAuthNotice');
-      if (existing) return;
-      const notice = document.createElement('div');
-      notice.id = 'localImageAuthNotice';
-      notice.style.padding = '8px 12px';
-      notice.style.margin = '8px 0';
-      notice.style.background = '#f3f4ff';
-      notice.style.color = '#111827';
-      notice.style.border = '1px solid #e5e7ff';
-      notice.style.borderRadius = '8px';
-      notice.style.fontSize = '13px';
-      notice.innerHTML = '' +
-        '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;">' +
-          '<div style="flex:1; font-size:12px; line-height:1.5;">' +
-            'To save ChatGPT-generated images, authorize a local folder. Images are stored there and loaded here in your notes. ' +
-            'If you do not need image saving now, you can ignore this. You can also change this later in Menu &rarr; Setting.' +
-          '</div>' +
-          '<div style="display:flex; flex-direction:column; gap:6px; margin-left:8px; white-space:nowrap;">' +
-            '<button id="linkLocalImageDirBtn" style="padding:4px 10px; border-radius:999px; border:1px solid #111827; background:#111827; color:#ffffff; font-size:11px; cursor:pointer;">Select Folder</button>' +
-            '<button id="closeLocalImageAuthNotice" style="padding:2px 6px; border-radius:999px; border:none; background:transparent; color:#6b7280; font-size:11px; cursor:pointer;"><i class="iconfont icon-close-circle"></i></button>' +
-          '</div>' +
-        '</div>';
-      const header = container.querySelector('.article-header') || container.firstElementChild;
-      (header ? header.parentNode : container).insertBefore(notice, header ? header.nextSibling : container.firstChild);
-      const btn = notice.querySelector('#linkLocalImageDirBtn');
-      btn.addEventListener('click', async (e) => {
-        e.preventDefault();
-        try {
-          const dir = await window.FileManager.selectDirectory();
-          if (dir) {
-            // 重新水合图片
-            await hydrateLocalImages(container, window.currentArticle || {});
-            notice.remove();
-          }
-        } catch (err) {
-          console.warn('selectDirectory failed', err);
-        }
-      }, { once: true });
-      const closeBtn = notice.querySelector('#closeLocalImageAuthNotice');
-      if (closeBtn) {
-        closeBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          notice.remove();
-        });
-      }
-    } catch (e) {
-      console.warn('ensureDirectoryForImages error:', e);
-    }
-  }
+  // ensureDirectoryForImages has been removed
   
   // 生成目录函数
   function generateTableOfContents(myQuestions) {
@@ -1349,6 +1248,9 @@
   
   // 渲染卡片
   function renderCards() {
+    // Update local data warning visibility based on current content
+    initLocalDataWarning();
+
     const container = document.querySelector('#masonryContainer');
     const emptyState = document.querySelector('#emptyState');
     const endMsg = document.getElementById('listEndMessage');
@@ -1483,27 +1385,42 @@
   
   // 筛选文章数据
   function filterConversations() {
+    // 提取描述文本的辅助函数
+    const generateDescription = (content) => {
+      if (!content) return 'No description available';
+      
+      let text = '';
+      if (Array.isArray(content)) {
+        // 尝试找到第一个有回答的内容
+        const item = content.find(c => c.answer);
+        text = item ? item.answer : '';
+      } else {
+        // 字符串内容：去除 mytag 标签（用户提问）
+        text = String(content).replace(/<!--\s*mytag:start\s*-->[\s\S]*?<!--\s*mytag:end\s*-->/g, '');
+      }
+      
+      // 去除HTML标签
+      text = stripHtml(text);
+      
+      // 去除可能的 "ChatGPT said:" 前缀
+      text = text.replace(/^ChatGPT said:\s*/i, '');
+      
+      return text.length > 100 ? text.substring(0, 100) + '...' : text;
+    };
+
     // 只使用真实的文章数据
     const allItems = articles.map(article => ({
       id: `article_${article.id}`,
       title: article.title,
-      description: (() => {
-        if (Array.isArray(article.content)) {
-          const firstAnswer = (article.content[0] && article.content[0].answer) ? article.content[0].answer : '';
-          return firstAnswer ? (firstAnswer.substring(0, 100) + '...') : 'No description available';
-        }
-        if (article.content && typeof article.content === 'string') {
-          return article.content.substring(0, 100) + '...';
-        }
-        return 'No description available';
-      })(),
+      description: generateDescription(article.content),
       content: article.content, // 添加完整的content字段用于计算对话数量
       category: article.category || 'Uncategorized',
       date: new Date(article.create_at).toLocaleDateString('zh-CN'),
       create_at: article.create_at, // 保留原始时间戳用于排序
       messageCount: 0,
       type: 'article',
-      originalId: article.id
+      originalId: article.id,
+      url: article.url // Pass URL to item
     }));
     
     let filtered = [...allItems];
@@ -1550,6 +1467,16 @@
     // 根据类型显示不同的内容
     const isArticle = item.type === 'article';
     
+    // Platform icon logic
+    let platformIconHtml = '';
+    if (item.url) {
+      if (item.url.includes('chatgpt.com') || item.url.includes('openai.com')) {
+        platformIconHtml = `<img src="./images/chatgpt-icon.png" class="platform-icon" alt="ChatGPT" title="from ChatGPT">`;
+      } else if (item.url.includes('gemini.google.com')) {
+        platformIconHtml = `<img src="./images/gemini-icon.png" class="platform-icon" alt="Gemini" title="from Gemini">`;
+      }
+    }
+    
     // 计算对话数量：新结构用数组长度；旧结构基于 mytag:start 标签
     let dialogCount = 0;
     if (Array.isArray(item.content)) {
@@ -1564,9 +1491,10 @@
       <div class="card-content">
         <div class="card-main">
           <h3 class="card-title">${escapeHtml(item.title)}</h3>
-          <p class="card-description">${escapeHtml(item.description)}</p>
+          <p class="card-description">${escapeHtml(stripHtml(item.description))}</p>
         </div>
         <div class="card-meta">
+          ${platformIconHtml}
           <span class="card-category">
             <span class="category-name">${item.category}</span>
             
@@ -1661,21 +1589,21 @@
   function showEmptyState() {
     const emptyState = document.querySelector('#emptyState');
     const emptyTitle = document.querySelector('#emptyTitle');
-    const emptyDescription = document.querySelector('#emptyDescription');
+    const instructions = document.querySelector('.empty-instructions');
     
-    if (!emptyState || !emptyTitle || !emptyDescription) return;
+    if (!emptyState || !emptyTitle) return;
     
     // 判断是否有搜索条件
     const hasSearchQuery = searchQuery && searchQuery.trim() !== '';
     
     if (hasSearchQuery) {
       // 搜索结果为空
-      emptyTitle.textContent = 'No results found.';
-      emptyDescription.textContent = 'Try different keywords.';
+      emptyTitle.textContent = 'No results found. Try different keywords.';
+      if (instructions) instructions.style.display = 'none';
     } else {
       // 没有任何卡片
       emptyTitle.textContent = 'Nothing here yet.';
-      emptyDescription.textContent = 'Add your first conversation.';
+      if (instructions) instructions.style.display = 'block';
     }
     
     emptyState.style.display = 'flex';
@@ -1686,6 +1614,14 @@
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  // 去除HTML标签
+  function stripHtml(html) {
+    if (!html) return '';
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    return div.textContent || div.innerText || '';
   }
 
   // 仅在标题中将<img>标签渲染成字符串，其它保持默认
@@ -2050,27 +1986,66 @@
       const title = article.title || 'Untitled';
       const content = article.content || '';
 
+      // Helper to convert DOM node to Markdown
+      const domToMarkdown = (node) => {
+        if (node.nodeType === 3) return node.textContent;
+        if (node.nodeType !== 1) return '';
+
+        let content = '';
+        node.childNodes.forEach(child => content += domToMarkdown(child));
+
+        const tag = node.tagName.toLowerCase();
+        switch (tag) {
+          case 'br': return '\n';
+          case 'img':
+            const src = node.getAttribute('data-src') || node.getAttribute('src');
+            const alt = node.getAttribute('alt') || '';
+            return src ? `![${alt}](${src})` : '';
+          case 'a':
+            const href = node.getAttribute('href');
+            return href ? `[${content}](${href})` : content;
+          case 'b':
+          case 'strong':
+            return content.trim() ? `**${content}**` : '';
+          case 'i':
+          case 'em':
+            return content.trim() ? `*${content}*` : '';
+          case 'h1': return `\n# ${content}\n`;
+          case 'h2': return `\n## ${content}\n`;
+          case 'h3': return `\n### ${content}\n`;
+          case 'p':
+          case 'div':
+            return `\n${content}\n`;
+          case 'ul':
+          case 'ol':
+            return `\n${content}\n`;
+          case 'li':
+            return `\n- ${content}`;
+          case 'code':
+            return `\`${content}\``;
+          case 'pre':
+            return `\n\`\`\`\n${content}\n\`\`\`\n`;
+          default:
+            return content;
+        }
+      };
+
+      const htmlToMarkdown = (html) => {
+        if (!html) return '';
+        // If simple text without tags, return as is
+        if (!/<[a-z][\s\S]*>/i.test(html)) return html;
+        
+        const container = document.createElement('div');
+        container.innerHTML = html;
+        return domToMarkdown(container).trim().replace(/\n{3,}/g, '\n\n');
+      };
+
       let markdownContent = '';
       const buildTitleLine = (t) => `# ${t}\n\n`;
       const buildSectionTitle = (t) => {
         const trimmed = (t || '').trim();
-        const withBreaks = trimmed.replace(/\r?\n/g, ' <br> ');
-        return `## ${withBreaks}`;
-      };
-      const renderImgHtmlToMarkdown = (html) => {
-        const container = document.createElement('div');
-        container.innerHTML = html || '';
-        const imgs = container.querySelectorAll('img');
-        if (imgs.length === 0) {
-          return html || '';
-        }
-        let md = '';
-        imgs.forEach(img => {
-          const url = img.getAttribute('data-src') || img.getAttribute('src') || '';
-          const alt = img.getAttribute('alt') || '';
-          if (url) md += `![${alt}](${url})\n`;
-        });
-        return md.trim();
+        const cleanTitle = trimmed.replace(/\r?\n/g, ' ');
+        return `## ${cleanTitle}`;
       };
 
       if (Array.isArray(content)) {
@@ -2079,11 +2054,7 @@
         if (!hasMultipleConversations) markdownContent += buildTitleLine(title);
         items.forEach(entry => {
           markdownContent += buildSectionTitle(entry.title || '') + '\n\n';
-          if (entry.type === 'img') {
-            markdownContent += renderImgHtmlToMarkdown(entry.answer || '') + '\n\n';
-          } else {
-            markdownContent += (entry.answer || '') + '\n\n';
-          }
+          markdownContent += htmlToMarkdown(entry.answer || '') + '\n\n';
         });
       } else {
         const textContent = String(content || '');
@@ -2093,10 +2064,12 @@
         markdownContent = hasMultipleConversations ? '' : buildTitleLine(title);
         const processedContent = textContent.replace(/<!--\s*mytag:start\s*-->([\s\S]*?)<!--\s*mytag:end\s*-->/g, function(match, innerContent) {
           const trimmedContent = innerContent.trim();
-          const withBreaks = trimmedContent.replace(/\r?\n/g, ' <br> ');
-          return `## ${withBreaks}`;
+          const cleanTitle = trimmedContent.replace(/\r?\n/g, ' ');
+          return `## ${cleanTitle}`;
         });
-        markdownContent += processedContent;
+        
+        // Use htmlToMarkdown on the processed content as well, in case it contains HTML tags
+        markdownContent += htmlToMarkdown(processedContent);
       }
 
       return markdownContent;
@@ -2435,21 +2408,11 @@
           const confirmed = confirm('Data recovery will overwrite all existing data. Do you want to continue?');
           if (!confirmed) return;
           
-          // 清空现有数据
-          await storage.clear('articles');
-          await storage.clear('categories');
-          
-          // 导入文章数据
-          const articles = importData.data.articles;
-          for (const article of articles) {
-            await storage.set('articles', article);
-          }
-          
-          // 导入分类数据
-          const categories = importData.data.categories;
-          for (const category of categories) {
-            await storage.set('categories', category);
-          }
+          // 批量导入数据 (storageAPI内部会自动清空旧数据)
+          await storage.set({
+            articles: importData.data.articles || [],
+            categories: importData.data.categories || []
+          });
           
           console.log('Data recovery successful');
           alert('Data recovery successful! The page will refresh to display new data.');
